@@ -1,0 +1,11 @@
+[ignore]
+<PROJECT_ROOT>/node_modules/*
+
+[include]
+
+[libs]
+flow-typed
+
+[options]
+module.system.node.resolve_dirname=node_modules
+#all=true
