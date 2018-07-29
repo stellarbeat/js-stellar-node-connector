@@ -15,4 +15,4 @@ https://flow.org/
 
 see `src/examples/connect.js` for an example on how to connect to a node
 
-for example connect to an ibm validator: `npm run example-connect 169.51.72.53` 
+for example connect to an ibm validator: `npm run examples:connect 169.51.72.53` 

@@ -8,9 +8,9 @@
     "flow:check": "flow check ./src/",
     "flow:deps": "flow-typed install",
     "flow:build": "flow-remove-types ./src/ -d ./dist/ --all --pretty",
-    "connect": "npm run flow:build; node dist/examples/connect"
+    "examples:connect": "npm run flow:build; node dist/examples/connect"
   },
-  "author": "pieterjan64@github",
+  "author": "pieterjan84@github",
   "license": "MIT",
   "dependencies": {
     "bignumber.js": "^4.0.0",
