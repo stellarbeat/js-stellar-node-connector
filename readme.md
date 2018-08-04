@@ -9,7 +9,7 @@ Connect and send commands to nodes in the stellar network
 ## build code
 https://flow.org/
 
-`npm run flow:build` : builds code in dist folder
+`npm run flow:build` : builds code in lib folder
 
 ## usage
 
