@@ -1,24 +1,23 @@
 {
-  "name": "stellar-js-node-connector",
+  "name": "js-stellar-node-connector",
   "version": "0.1.0",
   "description": "Connect and send commands to nodes in the stellar network",
-  "main": "web/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stellarbeat/js-stellar-node-connector.git"
+  },
   "scripts": {
     "flow": "flow",
     "flow:check": "flow check ./src/",
     "flow:deps": "flow-typed install",
-    "flow:build": "flow-remove-types ./src/ -d ./dist/ --all --pretty",
-    "examples:connect": "npm run flow:build; node dist/examples/connect"
+    "flow:build": "flow-remove-types ./src/ -d ./lib/ --all --pretty; flow-copy-source src lib",
+    "examples:connect": "npm run flow:build; node lib/examples/connect"
   },
   "author": "pieterjan84@github",
   "license": "MIT",
   "dependencies": {
     "bignumber.js": "^4.0.0",
     "ed25519": "0.0.4",
-    "flow": "^0.2.3",
-    "flow-bin": "^0.73.0",
-    "flow-remove-types": "^1.2.3",
-    "flow-typed": "^2.4.0",
     "lodash": "^4.17.10",
     "mysql": "^2.15.0",
     "net": "^1.0.2",
@@ -26,5 +25,12 @@
     "ramda": "^0.25.0",
     "stellar-base": "^0.7.8",
     "tweetnacl": "^1.0.0"
+  },
+  "devDependencies": {
+    "flow-copy-source": "^2.0.2",
+    "flow": "^0.2.3",
+    "flow-bin": "^0.73.0",
+    "flow-remove-types": "^1.2.3",
+    "flow-typed": "^2.4.0"
   }
 }
