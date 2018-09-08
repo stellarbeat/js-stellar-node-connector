@@ -73,7 +73,7 @@ class ConnectionManager {
             .on('disconnect', function () {
                 console.log("[CONNECTION] " + connection.toNode.key + " Node disconnected.");
             })
-            .on('close', () => {
+            .on('close', (err) => {
                 console.log("[CONNECTION] " + connection.toNode.key + " Node closed connection");
                 clearTimeout(timeout);
                 this._sockets.delete(connection.toNode.key);

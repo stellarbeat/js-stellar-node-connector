@@ -23,11 +23,11 @@ module.exports = {
     createHelloMessage: function (connection: Connection,
                                   stellarNetworkId: string) {
         let hello = new StellarBase.xdr.Hello({ //todo: hardcoded data should come from connection 'fromNode'
-            ledgerVersion: 9,
-            overlayVersion: 5,
+            ledgerVersion: 10,
+            overlayVersion: 10,
             overlayMinVersion: 5,
             networkId: stellarNetworkId,
-            versionStr: 'v9.1.0',
+            versionStr: 'v10.0.0',
             listeningPort: 11625,
             peerId: connection.keyPair.xdrPublicKey(),
             cert: connection.getAuthCert(),
