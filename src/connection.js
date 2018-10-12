@@ -1,13 +1,22 @@
-// 
-const Node = require('./node');
+// @flow
+const Node = require('@stellarbeat/js-stellar-domain').Node;
 const nacl = require("tweetnacl");
 const BigNumber = require("bignumber.js");
 const StellarBase = require('stellar-base');
 const crypto = require("crypto");
 
 class Connection { //todo: introduce 'fromNode'
+    _keyPair: StellarBase.Keypair;
+    _toNode: Node;
+    _secretKey: Buffer;
+    _localPublicKey: Buffer;
+    _remotePublicKey: Buffer;
+    _localNonce: Buffer;
+    _remoteNonce: Buffer;
+    _localSequence: StellarBase.xdr.Uint64;
+    _remoteSequence: StellarBase.xdr.Uint64;
 
-    constructor(keyPair, toNode) {
+    constructor(keyPair: StellarBase.Keypair, toNode: Node) {
         this._keyPair = keyPair;
         this._secretKey = nacl.randomBytes(32); //CURVE25519 keypair
         this._localPublicKey = nacl.scalarMult.base(this._secretKey);
@@ -17,31 +26,31 @@ class Connection { //todo: introduce 'fromNode'
         this._toNode = toNode;
     }
 
-    get keyPair() {
+    get keyPair(): StellarBase.Keypair {
         return this._keyPair;
     }
 
-    get toNode() {
+    get toNode(): Node {
         return this._toNode;
     }
 
-    get secretKey() {
+    get secretKey(): Buffer {
         return this._secretKey;
     }
 
-    get localPublicKey() {
+    get localPublicKey(): Buffer {
         return this._localPublicKey;
     }
 
-    get localNonce() {
+    get localNonce(): Buffer {
         return this._localNonce;
     }
 
-    set localNonce(value) {
+    set localNonce(value: Buffer) {
         this._localNonce = value;
     }
 
-    get localSequence() {
+    get localSequence(): StellarBase.xdr.Uint64 {
         return this._localSequence;
     }
 
@@ -49,23 +58,23 @@ class Connection { //todo: introduce 'fromNode'
         return this._remoteSequence;
     }
 
-    set remoteSequence(value) {
+    set remoteSequence(value: StellarBase.xdr.Uint64) {
         this._remoteSequence = value;
     }
 
-    get remotePublicKey() {
+    get remotePublicKey(): Buffer {
         return this._remotePublicKey;
     }
 
-    set remotePublicKey(value) {
+    set remotePublicKey(value: Buffer) {
         this._remotePublicKey = value;
     }
 
-    get remoteNonce() {
+    get remoteNonce(): Buffer {
         return this._remoteNonce;
     }
 
-    set remoteNonce(value) {
+    set remoteNonce(value: Buffer) {
         this._remoteNonce = value;
     }
 
@@ -117,7 +126,7 @@ class Connection { //todo: introduce 'fromNode'
         });
     }
 
-    getRawSignatureData(curve25519PublicKey, expiration) {
+    getRawSignatureData(curve25519PublicKey: StellarBase.xdr.Curve25519Public, expiration:StellarBase.xdr.Uint64) {
         return Buffer.concat([
             StellarBase.Network.current().networkId(),
             StellarBase.xdr.EnvelopeType.envelopeTypeAuth().toXDR(),
@@ -126,7 +135,7 @@ class Connection { //todo: introduce 'fromNode'
         ]);
     }
 
-    authenticateMessage(message, handShakeComplete = true) {
+    authenticateMessage(message:StellarBase.xdr.StellarMessage, handShakeComplete:boolean = true):StellarBase.xdr.AuthenticatedMessageV0 {
         if(handShakeComplete){
             this.increaseLocalSequenceByOne();
         }
@@ -142,7 +151,7 @@ class Connection { //todo: introduce 'fromNode'
         return authenticatedMessage;
     }
 
-    getMacForAuthenticatedMessage(message) {
+    getMacForAuthenticatedMessage(message: StellarBase.xdr.StellarMessage) {
         if(!this.remotePublicKey){
             return new StellarBase.xdr.HmacSha256Mac({
                 mac: Buffer.alloc(32) // empty mac for hello message

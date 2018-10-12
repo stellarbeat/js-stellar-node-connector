@@ -1,5 +1,5 @@
 // @flow
-const Node = require('./node');
+const Node = require('@stellarbeat/js-stellar-domain').Node;
 const nacl = require("tweetnacl");
 const BigNumber = require("bignumber.js");
 const StellarBase = require('stellar-base');

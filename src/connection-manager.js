@@ -1,23 +1,31 @@
-// 
+// @flow
+import type Socket from 'net';
 
 const StellarBase = require('stellar-base');
-const Node = require("../entities/node");
-const QuorumSet = require("../entities/quorum-set");
+const Node = require("@stellarbeat/js-stellar-domain").Node;
+const QuorumSet = require("@stellarbeat/js-stellar-domain").QuorumSet;
 const net = require('net');
-const xdrService = require('./xdr');
-const messageService = require("./message");
-const Connection = require("./../entities/connection");
+const xdrService = require('./xdr-service');
+const messageService = require("./message-service");
+const Connection = require("./connection");
 
 class ConnectionManager {
+    _sockets: Map<string, Socket>;
+    _onHandshakeCompletedCallback: (connection:Connection) => void;
+    _onPeersReceivedCallback : (peers: Array<Node>, connection:Connection) => void;
+    _onLoadTooHighCallback : (connection:Connection) => void;
+    _onQuorumSetHashDetectedCallback : (connection: Connection, quorumSetHash: string, quorumSetOwnerPublicKey: string) => void;
+    _onQuorumSetReceivedCallback : (connection: Connection, quorumSet: QuorumSet) => void;
+    _onNodeDisconnectedCallback : (connection:Connection) => void;
 
     constructor(
-        usePublicNetwork = true,
-        onHandshakeCompletedCallback,
-        onPeersReceivedCallback,
-        onLoadTooHighCallback,
-        onQuorumSetHashDetectedCallback,
-        onQuorumSetReceivedCallback,
-        onNodeDisconnectedCallback
+        usePublicNetwork:boolean = true,
+        onHandshakeCompletedCallback:(connection:Connection) => void,
+        onPeersReceivedCallback: (peers: Array<Node>, connection:Connection) => void,
+        onLoadTooHighCallback:(connection:Connection) => void,
+        onQuorumSetHashDetectedCallback:(connection: Connection, quorumSetHash: string, quorumSetOwnerPublicKey: string) => void,
+        onQuorumSetReceivedCallback:(connection: Connection, quorumSet: QuorumSet) => void,
+        onNodeDisconnectedCallback:(connection:Connection) => void
     ) {
         this._sockets = new Map();
         this._onHandshakeCompletedCallback = onHandshakeCompletedCallback;
@@ -34,7 +42,7 @@ class ConnectionManager {
         }
     }
 
-    connect(keyPair, toNode, durationInMilliseconds){ //todo 'fromNode that encapsulates keypair'
+    connect(keyPair:StellarBase.Keypair, toNode:Node, durationInMilliseconds:number){ //todo 'fromNode that encapsulates keypair'
         let socket = new net.Socket();
         socket.setTimeout(30000);
         let connection = new Connection(keyPair, toNode);
@@ -65,7 +73,7 @@ class ConnectionManager {
             .on('disconnect', function () {
                 console.log("[CONNECTION] " + connection.toNode.key + " Node disconnected.");
             })
-            .on('close', (err) => {
+            .on('close', () => {
                 console.log("[CONNECTION] " + connection.toNode.key + " Node closed connection");
                 clearTimeout(timeout);
                 this._sockets.delete(connection.toNode.key);
@@ -80,12 +88,12 @@ class ConnectionManager {
         socket.connect(connection.toNode.port, connection.toNode.ip);
     }
 
-    initiateHandShake(connection) {
+    initiateHandShake(connection: Connection) {
         console.log("[CONNECTION] " + connection.toNode.key + ": Initiate handshake");
         this.sendHello(connection);
     }
 
-    sendHello(connection) {
+    sendHello(connection: Connection) {
         console.log("[CONNECTION] " + connection.toNode.key + ": Send HELLO message");
         this.writeMessageToSocket(
             connection,
@@ -94,18 +102,18 @@ class ConnectionManager {
         );
     }
 
-    continueHandshake(connection) {
+    continueHandshake(connection:Connection):void {
         console.log("[CONNECTION] " + connection.toNode.key + ": Continue handshake");
         this.sendAuthMessage(connection);
     }
 
-    finishHandshake(connection) {
+    finishHandshake(connection:Connection):void {
         console.log("[CONNECTION] " + connection.toNode.key + ": Finish handshake");
 
         this._onHandshakeCompletedCallback(connection);
     }
 
-    handleData(data, connection) {
+    handleData(data:ArrayBuffer, connection:Connection) {
         let buffer = Buffer.from(data);//, 0, 2);
 
         try {
@@ -122,7 +130,7 @@ class ConnectionManager {
         }
     }
 
-    handleReceivedAuthenticatedMessage(authenticatedMessage, connection) {
+    handleReceivedAuthenticatedMessage(authenticatedMessage, connection: Connection) {
         switch (authenticatedMessage.message().arm()) {
 
             case 'hello':
@@ -187,7 +195,7 @@ class ConnectionManager {
 
     }
 
-    handleReceivedPeersMessage(peersMessage, connection) {
+    handleReceivedPeersMessage(peersMessage, connection:Connection) {
         console.log('[CONNECTION] ' + connection.toNode.key + ': PEERS message contains '+ peersMessage.length + " peers");
 
         this._onPeersReceivedCallback(peersMessage.map((peerAddress) => {
@@ -198,7 +206,7 @@ class ConnectionManager {
         }), connection);
     }
 
-    sendGetQuorumSet(hash, connection) {
+    sendGetQuorumSet(hash:Buffer, connection:Connection) {
         console.log('[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP QUORUM SET message');
 
         this.writeMessageToSocket(
@@ -207,7 +215,7 @@ class ConnectionManager {
         );
     }
 
-    sendGetPeers(connection) {
+    sendGetPeers(connection:Connection) {
         console.log('[CONNECTION] ' + connection.toNode.key + ': Sending GET PEERS message');
 
         this.writeMessageToSocket(
@@ -216,7 +224,7 @@ class ConnectionManager {
         );
     }
 
-    sendAuthMessage(connection) {
+    sendAuthMessage(connection:Connection) {
         console.log('[CONNECTION] ' + connection.toNode.key + ': Sending AUTH message');
 
         this.writeMessageToSocket(
@@ -226,7 +234,7 @@ class ConnectionManager {
         );
     }
 
-    writeMessageToSocket(connection, message, handShakeComplete=true){
+    writeMessageToSocket(connection:Connection, message:StellarBase.xdr.StellarMessage, handShakeComplete:boolean=true){
         let socket = this._sockets.get(connection.toNode.key);
         if(socket){
             socket.write(

@@ -1,6 +1,6 @@
 {
-  "name": "js-stellar-node-connector",
-  "version": "0.1.0",
+  "name": "@stellarbeat/js-stellar-node-connector",
+  "version": "0.2.0",
   "description": "Connect and send commands to nodes in the stellar network",
   "repository": {
     "type": "git",
@@ -11,17 +11,18 @@
     "flow:check": "flow check ./src/",
     "flow:deps": "flow-typed install",
     "flow:build": "flow-remove-types ./src/ -d ./lib/ --all --pretty; flow-copy-source src lib",
-    "examples:connect": "npm run flow:build; node lib/examples/connect"
+    "examples:connect": "npm run flow:build; node examples/connect"
   },
   "author": "pieterjan84@github",
   "license": "MIT",
   "dependencies": {
+    "@stellarbeat/js-stellar-domain": "github:stellarbeat/js-stellar-domain#master",
     "bignumber.js": "^4.0.0",
     "ed25519": "0.0.4",
-    "lodash": "^4.17.10",
+    "lodash": "^4.17.11",
     "mysql": "^2.15.0",
     "net": "^1.0.2",
-    "npm": "^6.1.0",
+    "npm": "^6.4.1",
     "ramda": "^0.25.0",
     "stellar-base": "^0.8",
     "tweetnacl": "^1.0.0"

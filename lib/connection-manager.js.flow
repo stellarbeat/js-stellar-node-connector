@@ -2,12 +2,12 @@
 import type Socket from 'net';
 
 const StellarBase = require('stellar-base');
-const Node = require("../entities/node");
-const QuorumSet = require("../entities/quorum-set");
+const Node = require("@stellarbeat/js-stellar-domain").Node;
+const QuorumSet = require("@stellarbeat/js-stellar-domain").QuorumSet;
 const net = require('net');
-const xdrService = require('./xdr');
-const messageService = require("./message");
-const Connection = require("./../entities/connection");
+const xdrService = require('./xdr-service');
+const messageService = require("./message-service");
+const Connection = require("./connection");
 
 class ConnectionManager {
     _sockets: Map<string, Socket>;

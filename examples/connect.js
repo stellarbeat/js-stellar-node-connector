@@ -1,7 +1,7 @@
-const Node = require("../entities/node");
-const Connection = require("../entities/connection");
-const QuorumSet = require("../entities/quorum-set");
-const ConnectionManager = require("../services/connection-manager");
+const Node = require("@stellarbeat/js-stellar-domain").Node;
+const Connection = require("../lib/entities/connection");
+const QuorumSet = require("../lib/entities/quorum-set");
+const ConnectionManager = require("../lib/services/connection-manager");
 const StellarBase = require('stellar-base');
 
 connect();
@@ -47,32 +47,33 @@ function connect() {
     );
 }
 
-function onHandshakeCompleted(connection: Connection) {
+function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");
-    console.log(connection.toNode)
+    console.log(connection.toNode);
+    process.exit(-1);
 }
 
-function onPeersReceived(peers:Array<Node>, connection:Connection) {
+function onPeersReceived(peers, connection) {
     console.log('[COMMAND]: peers received:');
     peers.forEach(peer => {
         console.log(peer)
     });
 }
 
-function onLoadTooHighReceived(connection: Connection) {
+function onLoadTooHighReceived(connection) {
     console.log("[COMMAND]: Node load too high, exiting");
     process.exit(-1);
 }
 
-function onQuorumSetHashDetected(connection:Connection, quorumSetHash:string, quorumSetOwnerPublicKey:string) {
+function onQuorumSetHashDetected(connection, quorumSetHash, quorumSetOwnerPublicKey) {
 
 }
 
-function onQuorumSetReceived(connection:Connection, quorumSet:QuorumSet) {
+function onQuorumSetReceived(connection, quorumSet) {
 
 }
 
-function onNodeDisconnected(connection: Connection) {
+function onNodeDisconnected(connection) {
     console.log("[COMMAND]: Node disconnected, exiting");
     process.exit(-1);
 }

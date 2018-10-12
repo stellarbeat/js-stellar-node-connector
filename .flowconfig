@@ -1,7 +1,6 @@
 [ignore]
-<PROJECT_ROOT>/node_modules/*
-
-[include]
+.*/node_modules/config-chain/test/broken.json
+lib/*
 
 [libs]
 flow-typed
