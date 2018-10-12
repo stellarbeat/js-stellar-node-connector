@@ -13,6 +13,7 @@
     "flow:build": "flow-remove-types ./src/ -d ./lib/ --all --pretty; flow-copy-source src lib",
     "examples:connect": "npm run flow:build; node examples/connect"
   },
+  "main": "lib/index.js",
   "author": "pieterjan84@github",
   "license": "MIT",
   "dependencies": {
