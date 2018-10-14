@@ -157,8 +157,8 @@ class ConnectionManager {
             case 'error':
                 console.log('[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a an error message: ' + authenticatedMessage.message().get().code().name);
                 if(messageService.isLoadErrorMessage(authenticatedMessage.message().get())){
+                    connection.toNode.active = true;
                     connection.toNode.overLoaded = true;
-                    connection.toNode.statistics.overLoadedCounter ++;
                     if(this._onLoadTooHighCallback)
                         this._onLoadTooHighCallback(connection);
                 }
