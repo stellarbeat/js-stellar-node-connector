@@ -78,11 +78,11 @@ module.exports = {
         connection.toNode.versionStr = helloMessage.versionStr();
         connection.remoteNonce = helloMessage.nonce();
         connection.remotePublicKey = helloMessage.cert().pubkey().key();
-        if(connection.toNode.statistics.dateDiscovered === undefined) {
-            connection.toNode.statistics.dateDiscovered = new Date();
-            connection.toNode.statistics.dateUpdated = connection.toNode.statistics.dateDiscovered;
+        if(connection.toNode.dateDiscovered === undefined) {
+            connection.toNode.dateDiscovered = new Date();
+            connection.toNode.dateUpdated = connection.toNode.dateDiscovered;
         } else {
-            connection.toNode.statistics.dateUpdated = new Date();
+            connection.toNode.dateUpdated = new Date();
         }
     }
 

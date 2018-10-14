@@ -1,7 +1,7 @@
 const Node = require("@stellarbeat/js-stellar-domain").Node;
-const Connection = require("../lib/entities/connection");
-const QuorumSet = require("../lib/entities/quorum-set");
-const ConnectionManager = require("../lib/services/connection-manager");
+const Connection = require("../lib/connection");
+const QuorumSet = require("@stellarbeat/js-stellar-domain").QuorumSet;
+const ConnectionManager = require("../lib/connection-manager");
 const StellarBase = require('stellar-base');
 
 connect();
@@ -50,7 +50,6 @@ function connect() {
 function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");
     console.log(connection.toNode);
-    process.exit(-1);
 }
 
 function onPeersReceived(peers, connection) {
