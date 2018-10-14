@@ -43,6 +43,8 @@ class ConnectionManager {
     }
 
     connect(keyPair:StellarBase.Keypair, toNode:Node, durationInMilliseconds:number){ //todo 'fromNode that encapsulates keypair'
+        toNode.active = false; //when we can connect to it, or it is overloaded, we mark it as active
+        toNode.overLoaded = false; //only when we receive an overloaded message, we mark it as overloaded
         let socket = new net.Socket();
         socket.setTimeout(30000);
         let connection = new Connection(keyPair, toNode);
@@ -62,7 +64,6 @@ class ConnectionManager {
                 this.handleData(data, connection);
             })
             .on('error', (err) => {
-                connection.toNode.active = false;
                 if (err.code === "ENOTFOUND") {
                     console.log("[CONNECTION] " + connection.toNode.key + " Socket error. No device found at this address.");
                 } else if (err.code === "ECONNREFUSED") {
@@ -81,7 +82,6 @@ class ConnectionManager {
                 this._onNodeDisconnectedCallback(connection);
             })
             .on('timeout', () => {
-                connection.toNode.active = false;
                 console.log("[CONNECTION] " + connection.toNode.key + " Node took too long to respond, disconnecting");
                 socket.destroy();
             });
