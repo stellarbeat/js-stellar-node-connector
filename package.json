@@ -25,7 +25,7 @@
     "net": "^1.0.2",
     "npm": "^6.4.1",
     "ramda": "^0.25.0",
-    "stellar-base": "^0.8",
+    "stellar-base": "0.8.2",
     "tweetnacl": "^1.0.0"
   },
   "devDependencies": {

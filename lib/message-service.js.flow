@@ -75,7 +75,7 @@ module.exports = {
         connection.toNode.overlayVersion = helloMessage.overlayVersion();
         connection.toNode.overlayMinVersion = helloMessage.overlayMinVersion();
         connection.toNode.networkId = helloMessage.networkId().toString('base64');
-        connection.toNode.versionStr = helloMessage.versionStr();
+        connection.toNode.versionStr = helloMessage.versionStr().toString();
         connection.remoteNonce = helloMessage.nonce();
         connection.remotePublicKey = helloMessage.cert().pubkey().key();
         if(connection.toNode.dateDiscovered === undefined) {
