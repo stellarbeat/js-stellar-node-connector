@@ -15,6 +15,7 @@ class Connection { //todo: introduce 'fromNode'
     _remoteNonce: Buffer;
     _localSequence: StellarBase.xdr.Uint64;
     _remoteSequence: StellarBase.xdr.Uint64;
+    _sharedKey: Buffer;
 
     constructor(keyPair: StellarBase.Keypair, toNode: Node) {
         this._keyPair = keyPair;
@@ -84,13 +85,17 @@ class Connection { //todo: introduce 'fromNode'
     }
 
     deriveSharedKey () {
-        let sharedKey = nacl.scalarMult(this.secretKey, this.remotePublicKey); //uint8 array
-        let buf = new Buffer(sharedKey); // bytes buffer
+        if(!this._sharedKey) {
+            let sharedKey = nacl.scalarMult(this.secretKey, this.remotePublicKey); //uint8 array
+            let buf = new Buffer(sharedKey); // bytes buffer
 
-        buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey]);
-        let zeroSalt = Buffer.alloc(32);
+            buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey]);
+            let zeroSalt = Buffer.alloc(32);
 
-        return crypto.createHmac('SHA256', zeroSalt).update(buf).digest();
+            this._sharedKey = crypto.createHmac('SHA256', zeroSalt).update(buf).digest();
+        }
+
+        return this._sharedKey;
     }
 
     getSendingMacKey () {
