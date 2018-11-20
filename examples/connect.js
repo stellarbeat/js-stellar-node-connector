@@ -24,7 +24,7 @@ function connect() {
 
     let timeout = process.argv[4];
     if(!timeout){
-        timeout = 60000;
+        timeout = 10000;
     } else {
         timeout =  parseInt(timeout);
     }
@@ -49,13 +49,13 @@ function connect() {
 
 function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");
-    console.log(connection.toNode);
+    console.log(JSON.stringify(connection.toNode));
 }
 
 function onPeersReceived(peers, connection) {
     console.log('[COMMAND]: peers received:');
     peers.forEach(peer => {
-        console.log(peer)
+        console.log(JSON.stringify(peer));
     });
 }
 
@@ -74,5 +74,4 @@ function onQuorumSetReceived(connection, quorumSet) {
 
 function onNodeDisconnected(connection) {
     console.log("[COMMAND]: Node disconnected, exiting");
-    process.exit(-1);
 }

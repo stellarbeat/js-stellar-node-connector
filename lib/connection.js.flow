@@ -87,7 +87,7 @@ class Connection { //todo: introduce 'fromNode'
     deriveSharedKey () {
         if(!this._sharedKey) {
             let sharedKey = nacl.scalarMult(this.secretKey, this.remotePublicKey); //uint8 array
-            let buf = new Buffer(sharedKey); // bytes buffer
+            let buf = Buffer.from(sharedKey); // bytes buffer
 
             buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey]);
             let zeroSalt = Buffer.alloc(32);
@@ -100,10 +100,10 @@ class Connection { //todo: introduce 'fromNode'
 
     getSendingMacKey () {
         let buf = Buffer.concat([
-            new Buffer([0]), //uint8_t = 1 char = 1 byte
+            Buffer.from([0]), //uint8_t = 1 char = 1 byte
             this.localNonce,
             this.remoteNonce,
-            new Buffer([1])
+            Buffer.from([1])
         ]);
 
         let sharedKey = this.deriveSharedKey();

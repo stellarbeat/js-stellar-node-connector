@@ -19,6 +19,7 @@
   "dependencies": {
     "@stellarbeat/js-stellar-domain": "github:stellarbeat/js-stellar-domain#master",
     "bignumber.js": "^4.0.0",
+    "dotenv": "^6.1.0",
     "ed25519": "0.0.4",
     "lodash": "^4.17.11",
     "mysql": "^2.15.0",
@@ -26,7 +27,8 @@
     "npm": "^6.4.1",
     "ramda": "^0.25.0",
     "stellar-base": "0.8.2",
-    "tweetnacl": "^1.0.0"
+    "tweetnacl": "^1.0.0",
+    "winston": "^3.1.0"
   },
   "devDependencies": {
     "flow-copy-source": "^2.0.2",
