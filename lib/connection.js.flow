@@ -4,6 +4,7 @@ const nacl = require("tweetnacl");
 const BigNumber = require("bignumber.js");
 const StellarBase = require('stellar-base');
 const crypto = require("crypto");
+var curve = require('curve25519-n');
 
 class Connection { //todo: introduce 'fromNode'
     _keyPair: StellarBase.Keypair;
@@ -19,8 +20,8 @@ class Connection { //todo: introduce 'fromNode'
 
     constructor(keyPair: StellarBase.Keypair, toNode: Node) {
         this._keyPair = keyPair;
-        this._secretKey = nacl.randomBytes(32); //CURVE25519 keypair
-        this._localPublicKey = nacl.scalarMult.base(this._secretKey);
+        this._secretKey = curve.makeSecretKey(nacl.randomBytes(32));
+        this._localPublicKey = curve.derivePublicKey(this._secretKey);
         this._localNonce = StellarBase.hash(BigNumber.random());
         this._localSequence = StellarBase.xdr.Uint64.fromString("0");
         //this._remoteSequence = StellarBase.xdr.Uint64.fromString("0");
@@ -86,7 +87,7 @@ class Connection { //todo: introduce 'fromNode'
 
     deriveSharedKey () {
         if(!this._sharedKey) {
-            let sharedKey = nacl.scalarMult(this.secretKey, this.remotePublicKey); //uint8 array
+            let sharedKey = curve.deriveSharedSecret(this.secretKey, this.remotePublicKey);
             let buf = Buffer.from(sharedKey); // bytes buffer
 
             buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey]);
