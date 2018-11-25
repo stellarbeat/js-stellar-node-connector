@@ -208,7 +208,7 @@ class ConnectionManager {
             case 'envelope':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
                 let statement = ScpStatement.fromXdr(authenticatedMessage.message().get().statement());
-console.log(statement);
+
                 this._onQuorumSetHashDetectedCallback(
                     connection,
                     statement.quorumSetHash,
