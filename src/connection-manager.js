@@ -79,7 +79,7 @@ class ConnectionManager {
         toNode.active = false; //when we can connect to it, or it is overloaded, we mark it as active
         toNode.overLoaded = false; //only when we receive an overloaded message, we mark it as overloaded
         let socket = new net.Socket();
-        socket.setTimeout(5000);
+        socket.setTimeout(2000);
         let connection = new Connection(keyPair, toNode);
         this._sockets.set(connection.toNode.key, socket);
         let timeout = setTimeout(() => {
@@ -143,6 +143,7 @@ class ConnectionManager {
     }
 
     finishHandshake(connection: Connection): void {
+        this._sockets.get(connection.toNode.key).setTimeout(30000);
         this._logger.log('info',"[CONNECTION] " + connection.toNode.key + ": Finish handshake, marking node as active");
         connection.toNode.active = true;
         this._onHandshakeCompletedCallback(connection);
