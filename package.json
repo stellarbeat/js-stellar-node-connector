@@ -11,7 +11,8 @@
     "flow:check": "flow check ./src/",
     "flow:deps": "flow-typed install",
     "flow:build": "flow-remove-types ./src/ -d ./lib/ --all --pretty; flow-copy-source src lib",
-    "examples:connect": "npm run flow:build; node examples/connect"
+    "examples:connect": "npm run flow:build; node examples/connect",
+    "test": "npm run flow:build; jest"
   },
   "main": "lib/index.js",
   "author": "pieterjan84@github",
@@ -21,6 +22,7 @@
     "bignumber.js": "^4.0.0",
     "dotenv": "^6.1.0",
     "ed25519": "0.0.4",
+    "jest": "^23.6.0",
     "lodash": "^4.17.11",
     "mysql": "^2.15.0",
     "net": "^1.0.2",

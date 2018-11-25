@@ -10,6 +10,8 @@ const messageService = require("./message-service");
 const Connection = require("./connection");
 const winston = require("winston");
 require('dotenv').config();
+const Transaction = require('stellar-base').Transaction;
+const ScpStatement = require('./scp-statement');
 
 class ConnectionManager {
     _sockets: Map<string, Socket>;
@@ -20,6 +22,7 @@ class ConnectionManager {
     _onQuorumSetReceivedCallback: (connection: Connection, quorumSet: QuorumSet) => void;
     _onNodeDisconnectedCallback: (connection: Connection) => void;
     _logger: any;
+    _dataBuffers:Array<Buffer>;
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -38,7 +41,7 @@ class ConnectionManager {
         this._onQuorumSetHashDetectedCallback = onQuorumSetHashDetectedCallback;
         this._onQuorumSetReceivedCallback = onQuorumSetReceivedCallback;
         this._onNodeDisconnectedCallback = onNodeDisconnectedCallback;
-
+        this._dataBuffers = [];
         if (usePublicNetwork) {
             StellarBase.Network.usePublicNetwork();
         } else {
@@ -146,19 +149,25 @@ class ConnectionManager {
     }
 
     handleData(data: ArrayBuffer, connection: Connection) {
-        let buffer = Buffer.from(data);//, 0, 2);
+        let buffer = undefined;
 
+        if(this._dataBuffers[connection.toNode.key]) {
+            buffer = Buffer.concat([this._dataBuffers[connection.toNode.key], data]);
+        } else {
+            buffer = data;
+        }
+        let xdrMessage = null;
         try {
-            while (buffer !== null) {
-                let xdrMessage = null;
-                [xdrMessage, buffer] = xdrService.getMessageFromXdrBuffer(buffer);
+            while (xdrService.xdrBufferContainsNextMessage(buffer)) {
+                [xdrMessage, buffer] = xdrService.getNextMessageFromXdrBuffer(buffer);
                 let authenticatedMessage = StellarBase.xdr.AuthenticatedMessage.fromXDR(xdrMessage).get();
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': data contains an authenticated message.');
                 this.handleReceivedAuthenticatedMessage(authenticatedMessage, connection);
             }
+            this._dataBuffers[connection.toNode.key] = buffer;
         }
         catch (exception) {
-            this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': data does not contain an authenticated message, ignoring...');
+            this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Exception ' + exception);
         }
     }
 
@@ -197,16 +206,18 @@ class ConnectionManager {
 
             case 'envelope':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
-                //todo logging
+                let statement = ScpStatement.fromXdr(authenticatedMessage.message().get().statement());
+
                 this._onQuorumSetHashDetectedCallback(
                     connection,
-                    authenticatedMessage.message().get().statement().pledges().value().quorumSetHash().toString('base64'),
-                    StellarBase.StrKey.encodeEd25519PublicKey(authenticatedMessage.message().get().statement().nodeId().get())
+                    statement.quorumSetHash,
+                    statement.nodeId
                 );
                 break;
 
             case 'transaction':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a transaction message.');
+                let transaction = new Transaction(authenticatedMessage.message().get());
                 break; //todo callback
 
             case 'qSet':
@@ -219,7 +230,6 @@ class ConnectionManager {
                     );
                 } catch (exception) {
                     this._logger.log('debug',exception);
-                    process.exit(0);
                 }
 
                 break; //todo callback
