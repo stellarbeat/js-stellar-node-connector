@@ -91,7 +91,7 @@ class ConnectionManager {
         socket.setTimeout(2000);
         let connection = new Connection(keyPair, toNode);
         this._sockets.set(connection.toNode.key, socket);
-        this._timeouts.set(connection, durationInMilliseconds);
+        this.setTimeout(connection, durationInMilliseconds);
 
         socket
             .on('connect', () => {
