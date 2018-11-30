@@ -4,6 +4,16 @@ const QuorumSet = require("@stellarbeat/js-stellar-domain").QuorumSet;
 const ConnectionManager = require("../lib/connection-manager");
 const StellarBase = require('stellar-base');
 
+let connectionManager = new ConnectionManager(
+    true,
+    onHandshakeCompleted,
+    onPeersReceived,
+    onLoadTooHighReceived,
+    onQuorumSetHashDetected,
+    onQuorumSetReceived,
+    onNodeDisconnected
+);
+
 connect();
 
 function connect() {
@@ -29,16 +39,6 @@ function connect() {
         timeout =  parseInt(timeout);
     }
 
-    let connectionManager = new ConnectionManager(
-        true,
-        onHandshakeCompleted,
-        onPeersReceived,
-        onLoadTooHighReceived,
-        onQuorumSetHashDetected,
-        onQuorumSetReceived,
-        onNodeDisconnected
-    );
-
     let keyPair = StellarBase.Keypair.random(); //use a random keypair to identify this script
     connectionManager.connect(
         keyPair,
@@ -50,6 +50,10 @@ function connect() {
 function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");
     console.log(JSON.stringify(connection.toNode));
+    /*connectionManager.pause(connection);
+    setTimeout(() => {
+        connectionManager.resume(connection, 10000);
+    }, 15000)*/
 }
 
 function onPeersReceived(peers, connection) {

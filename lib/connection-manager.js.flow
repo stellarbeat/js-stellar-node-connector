@@ -23,6 +23,7 @@ class ConnectionManager {
     _onNodeDisconnectedCallback: (connection: Connection) => void;
     _logger: any;
     _dataBuffers:Array<Buffer>;
+    _timeouts: Map<string, any>;
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -42,6 +43,7 @@ class ConnectionManager {
         this._onQuorumSetReceivedCallback = onQuorumSetReceivedCallback;
         this._onNodeDisconnectedCallback = onNodeDisconnectedCallback;
         this._dataBuffers = [];
+        this._timeouts = new Map();
         if (usePublicNetwork) {
             StellarBase.Network.usePublicNetwork();
         } else {
@@ -75,6 +77,13 @@ class ConnectionManager {
         });
     }
 
+    setTimeout(connection: Connection, durationInMilliseconds: number) {
+        this._timeouts.set(connection.toNode.key, setTimeout(() => {
+            this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Listen timeout reached, disconnecting');
+            this._sockets.get(connection.toNode.key).destroy();
+        }, durationInMilliseconds));
+    }
+
     connect(keyPair: StellarBase.Keypair, toNode: Node, durationInMilliseconds: number) { //todo 'fromNode that encapsulates keypair'
         toNode.active = false; //when we can connect to it, or it is overloaded, we mark it as active
         toNode.overLoaded = false; //only when we receive an overloaded message, we mark it as overloaded
@@ -82,10 +91,7 @@ class ConnectionManager {
         socket.setTimeout(2000);
         let connection = new Connection(keyPair, toNode);
         this._sockets.set(connection.toNode.key, socket);
-        let timeout = setTimeout(() => {
-            this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Listen timeout reached, disconnecting');
-            socket.destroy();
-        }, durationInMilliseconds);
+        this._timeouts.set(connection, durationInMilliseconds);
 
         socket
             .on('connect', () => {
@@ -110,7 +116,7 @@ class ConnectionManager {
             })
             .on('close', () => {
                 this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node closed connection");
-                clearTimeout(timeout);
+                clearTimeout(this._timeouts.get(connection.toNode.key));
                 this._sockets.delete(connection.toNode.key);
                 this._onNodeDisconnectedCallback(connection);
             })
@@ -121,6 +127,16 @@ class ConnectionManager {
 
         this._logger.log('info','[CONNECTION] ' + connection.toNode.key + ': Connect');
         socket.connect(connection.toNode.port, connection.toNode.ip);
+    }
+
+    pause(connection: Connection) {
+        clearTimeout(this._timeouts.get(connection.toNode.key));
+        this._sockets.get(connection.toNode.key).pause();
+    }
+
+    resume(connection: Connection, durationInMilliseconds: number) {
+        this._timeouts.set(connection, durationInMilliseconds);
+        this._sockets.get(connection.toNode.key).resume();
     }
 
     initiateHandShake(connection: Connection) {

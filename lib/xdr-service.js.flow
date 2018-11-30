@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 module.exports = {
     getMessageLengthFromXDRBuffer: function (buffer) {
         let xdrLengthBuffer = buffer.slice(0,4);
@@ -34,4 +37,20 @@ module.exports = {
 
         return Buffer.concat([lengthBuffer, message.toXDR()]);
     },
+
+    readXdrFile: function (filePath, successCallback, errorCallback) {
+        fs.readFile(filePath, {encoding: 'binary'}, function (err, data) {
+            if (!err) {
+                let buffer = Buffer.from(data, 'binary');
+                let next, rem;
+                [next, rem] = xs.getNextMessageFromXdrBuffer(buffer);
+                [next, rem] = xs.getNextMessageFromXdrBuffer(rem);
+                [next, rem] = xs.getNextMessageFromXdrBuffer(rem);
+                successCallback(next.toString('base64'));
+
+            } else {
+                errorCallback(err);
+            }
+        });
+    }
 };
