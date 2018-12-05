@@ -1,20 +1,16 @@
-// @flow
-import type Socket from 'net';
-
 const StellarBase = require('stellar-base');
-const Node = require("@stellarbeat/js-stellar-domain").Node;
-const QuorumSet = require("@stellarbeat/js-stellar-domain").QuorumSet;
-const net = require('net');
-const xdrService = require('./xdr-service');
-const messageService = require("./message-service");
-const Connection = require("./connection");
-const winston = require("winston");
+import {Node, QuorumSet} from"@stellarbeat/js-stellar-domain";
+import * as net from 'net';
+import xdrService from './xdr-service';
+import messageService from "./message-service";
+import {Connection} from "./connection";
+import * as winston from "winston";
 require('dotenv').config();
 const Transaction = require('stellar-base').Transaction;
-const ScpStatement = require('./scp-statement');
+import {SCPStatement} from './scp-statement';
 
-class ConnectionManager {
-    _sockets: Map<string, Socket>;
+export class ConnectionManager {
+    _sockets: Map<string, net.Socket>;
     _onHandshakeCompletedCallback: (connection: Connection) => void;
     _onPeersReceivedCallback: (peers: Array<Node>, connection: Connection) => void;
     _onLoadTooHighCallback: (connection: Connection) => void;
@@ -84,7 +80,7 @@ class ConnectionManager {
         }, durationInMilliseconds));
     }
 
-    connect(keyPair: StellarBase.Keypair, toNode: Node, durationInMilliseconds: number) { //todo 'fromNode that encapsulates keypair'
+    connect(keyPair: any /*StellarBase.Keypair*/, toNode: Node, durationInMilliseconds: number) { //todo 'fromNode that encapsulates keypair'
         toNode.active = false; //when we can connect to it, or it is overloaded, we mark it as active
         toNode.overLoaded = false; //only when we receive an overloaded message, we mark it as overloaded
         let socket = new net.Socket();
@@ -102,7 +98,7 @@ class ConnectionManager {
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Data received.');
                 this.handleData(data, connection);
             })
-            .on('error', (err) => {
+            .on('error', (err:any) => {
                 if (err.code === "ENOTFOUND") {
                     this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Socket error. No device found at this address.");
                 } else if (err.code === "ECONNREFUSED") {
@@ -135,7 +131,7 @@ class ConnectionManager {
     }
 
     resume(connection: Connection, durationInMilliseconds: number) {
-        this._timeouts.set(connection, durationInMilliseconds);
+        this._timeouts.set(connection.toNode.key, durationInMilliseconds);
         this._sockets.get(connection.toNode.key).resume();
     }
 
@@ -165,7 +161,7 @@ class ConnectionManager {
         this._onHandshakeCompletedCallback(connection);
     }
 
-    handleData(data: ArrayBuffer, connection: Connection) {
+    handleData(data: Buffer, connection: Connection) {
         let buffer = undefined;
 
         if(this._dataBuffers[connection.toNode.key]) {
@@ -223,7 +219,7 @@ class ConnectionManager {
 
             case 'envelope':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
-                let statement = ScpStatement.fromXdr(authenticatedMessage.message().get().statement());
+                let statement = SCPStatement.fromXdr(authenticatedMessage.message().get().statement());
 
                 this._onQuorumSetHashDetectedCallback(
                     connection,
@@ -296,7 +292,7 @@ class ConnectionManager {
         );
     }
 
-    writeMessageToSocket(connection: Connection, message: StellarBase.xdr.StellarMessage, handShakeComplete: boolean = true) {
+    writeMessageToSocket(connection: Connection, message: any /*StellarBase.xdr.StellarMessage*/, handShakeComplete: boolean = true) {
         let socket = this._sockets.get(connection.toNode.key);
         if (socket) {
             socket.write(
@@ -307,5 +303,3 @@ class ConnectionManager {
         }
     }
 }
-
-module.exports = ConnectionManager;

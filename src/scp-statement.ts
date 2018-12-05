@@ -1,6 +1,6 @@
-const StellarBase = require('stellar-base');
+const StellarBase = require("stellar-base");
 
-class SCPStatement {
+export class SCPStatement {
 
     static fromXdr(xdr) {
         if (typeof xdr === "string") {
@@ -8,7 +8,7 @@ class SCPStatement {
             xdr = StellarBase.xdr.ScpStatement.fromXDR(buffer);
         }
 
-        let result = {};
+        let result:any = {};
         result.nodeId = StellarBase.StrKey.encodeEd25519PublicKey(xdr.nodeId().get()).toString();
         result.slotIndex = xdr.slotIndex().toString();
         result.type = xdr.pledges().arm();
@@ -55,5 +55,3 @@ class SCPStatement {
         return result;
     }
 }
-
-module.exports = SCPStatement;

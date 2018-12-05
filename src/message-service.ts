@@ -1,9 +1,8 @@
-// @flow
 const StellarBase = require('stellar-base');
-const Connection = require('./connection');
-const QuorumSet = require('@stellarbeat/js-stellar-domain').QuorumSet;
+import {Connection} from './connection';
+import {QuorumSet} from '@stellarbeat/js-stellar-domain';
 
-module.exports = {
+export default {
 
     createScpQuorumSetMessage(hash:Buffer){
         return new StellarBase.xdr.StellarMessage.getScpQuorumset(hash);
@@ -35,18 +34,18 @@ module.exports = {
         return new StellarBase.xdr.StellarMessage.hello(hello);
     },
 
-    isLoadErrorMessage: function (errorMessage:StellarBase.xdr.StellarMessage) {
+    isLoadErrorMessage: function (errorMessage: any /*StellarBase.xdr.StellarMessage*/) {
         return errorMessage.code().value === StellarBase.xdr.ErrorCode.fromName("errLoad").value;
     },
 
-    getIpFromPeerAddress: function (peerAddress:StellarBase.xdr.PeerAddress) {
+    getIpFromPeerAddress: function (peerAddress: any /*StellarBase.xdr.PeerAddress*/) {
         return peerAddress.ip().get()[0] +
             '.' + peerAddress.ip().get()[1] +
             '.' + peerAddress.ip().get()[2] +
             '.' + peerAddress.ip().get()[3];
     },
 
-    getQuorumSetFromMessage: function(scpQuorumSetMessage:StellarBase.xdr.StellarMessage) {
+    getQuorumSetFromMessage: function(scpQuorumSetMessage:any /*StellarBase.xdr.StellarMessage*/) {
         let quorumSet = new QuorumSet(
             StellarBase.hash(scpQuorumSetMessage.toXDR()).toString('base64'),
             scpQuorumSetMessage.threshold()
@@ -65,7 +64,7 @@ module.exports = {
         return quorumSet;
     },
 
-    updateNodeInformation: function(helloMessage:StellarBase.xdr.StellarMessage, connection: Connection) { //todo callback
+    updateNodeInformation: function(helloMessage: any /*StellarBase.xdr.StellarMessage*/, connection: Connection) { //todo callback
         connection.toNode.publicKey = StellarBase.StrKey.encodeEd25519PublicKey(helloMessage.peerId().get());
         connection.toNode.ledgerVersion = helloMessage.ledgerVersion();
         connection.toNode.overlayVersion = helloMessage.overlayVersion();
@@ -81,6 +80,4 @@ module.exports = {
             connection.toNode.dateUpdated = new Date();
         }
     }
-
-
 };

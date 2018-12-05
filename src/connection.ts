@@ -1,24 +1,24 @@
-// @flow
-const Node = require('@stellarbeat/js-stellar-domain').Node;
-const nacl = require("tweetnacl");
-const BigNumber = require("bignumber.js");
-const StellarBase = require('stellar-base');
-const crypto = require("crypto");
-var curve = require('curve25519-n');
+import {Node} from '@stellarbeat/js-stellar-domain';
+import * as nacl from "tweetnacl";
+import BigNumber from "bignumber.js";
+import * as crypto from "crypto";
 
-class Connection { //todo: introduce 'fromNode'
-    _keyPair: StellarBase.Keypair;
+const StellarBase = require('stellar-base');
+const curve = require('curve25519-n');
+
+export class Connection { //todo: introduce 'fromNode'
+    _keyPair: any; //StellarBase.Keypair;
     _toNode: Node;
     _secretKey: Buffer;
     _localPublicKey: Buffer;
     _remotePublicKey: Buffer;
     _localNonce: Buffer;
     _remoteNonce: Buffer;
-    _localSequence: StellarBase.xdr.Uint64;
-    _remoteSequence: StellarBase.xdr.Uint64;
+    _localSequence: any;//StellarBase.xdr.Uint64;
+    _remoteSequence: any; //StellarBase.xdr.Uint64;
     _sharedKey: Buffer;
 
-    constructor(keyPair: StellarBase.Keypair, toNode: Node) {
+    constructor(keyPair: any/*StellarBase.Keypair*/, toNode: Node) {
         this._keyPair = keyPair;
         this._secretKey = curve.makeSecretKey(nacl.randomBytes(32));
         this._localPublicKey = curve.derivePublicKey(this._secretKey);
@@ -28,7 +28,7 @@ class Connection { //todo: introduce 'fromNode'
         this._toNode = toNode;
     }
 
-    get keyPair(): StellarBase.Keypair {
+    get keyPair(): any /*StellarBase.Keypair*/ {
         return this._keyPair;
     }
 
@@ -52,7 +52,7 @@ class Connection { //todo: introduce 'fromNode'
         this._localNonce = value;
     }
 
-    get localSequence(): StellarBase.xdr.Uint64 {
+    get localSequence(): any /*StellarBase.xdr.Uint64*/ {
         return this._localSequence;
     }
 
@@ -60,7 +60,7 @@ class Connection { //todo: introduce 'fromNode'
         return this._remoteSequence;
     }
 
-    set remoteSequence(value: StellarBase.xdr.Uint64) {
+    set remoteSequence(value: any /*StellarBase.xdr.Uint64*/) {
         this._remoteSequence = value;
     }
 
@@ -132,7 +132,7 @@ class Connection { //todo: introduce 'fromNode'
         });
     }
 
-    getRawSignatureData(curve25519PublicKey: StellarBase.xdr.Curve25519Public, expiration:StellarBase.xdr.Uint64) {
+    getRawSignatureData(curve25519PublicKey: any /*StellarBase.xdr.Curve25519Public*/, expiration: any /*StellarBase.xdr.Uint64*/) {
         return Buffer.concat([
             StellarBase.Network.current().networkId(),
             StellarBase.xdr.EnvelopeType.envelopeTypeAuth().toXDR(),
@@ -141,7 +141,7 @@ class Connection { //todo: introduce 'fromNode'
         ]);
     }
 
-    authenticateMessage(message:StellarBase.xdr.StellarMessage, handShakeComplete:boolean = true):StellarBase.xdr.AuthenticatedMessageV0 {
+    authenticateMessage(message: any /*StellarBase.xdr.StellarMessage*/, handShakeComplete:boolean = true): any /*StellarBase.xdr.AuthenticatedMessageV0*/ {
         if(handShakeComplete){
             this.increaseLocalSequenceByOne();
         }
@@ -157,7 +157,7 @@ class Connection { //todo: introduce 'fromNode'
         return authenticatedMessage;
     }
 
-    getMacForAuthenticatedMessage(message: StellarBase.xdr.StellarMessage) {
+    getMacForAuthenticatedMessage(message: any /*StellarBase.xdr.StellarMessage*/) {
         if(!this.remotePublicKey){
             return new StellarBase.xdr.HmacSha256Mac({
                 mac: Buffer.alloc(32) // empty mac for hello message
@@ -178,5 +178,3 @@ class Connection { //todo: introduce 'fromNode'
         });
     }
 }
-
-module.exports = Connection;

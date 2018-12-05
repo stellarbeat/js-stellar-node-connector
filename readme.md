@@ -3,13 +3,13 @@
 Connect and send commands to nodes in the stellar network
 
 ## install
-`npm install`
-`npm run flow:deps`
+`yarn install`
 
 ## build code
-https://flow.org/
+`yarn run build` : builds code in lib folder
 
-`npm run flow:build` : builds code in lib folder
+## test code
+`yarn run test`
 
 ## usage
 

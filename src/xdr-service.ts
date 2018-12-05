@@ -1,7 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+import fs = require("fs");
 
-module.exports = {
+export default {
     getMessageLengthFromXDRBuffer: function (buffer) {
         let xdrLengthBuffer = buffer.slice(0,4);
 
@@ -33,9 +32,10 @@ module.exports = {
 
     getXdrBufferFromMessage: function (message) {
         let lengthBuffer = Buffer.allocUnsafe(4);
-        lengthBuffer.writeInt32BE(message.toXDR().length, 0);
+        let xdrMessage =  message.toXDR();
+        lengthBuffer.writeInt32BE(xdrMessage.length, 0);
 
-        return Buffer.concat([lengthBuffer, message.toXDR()]);
+        return Buffer.concat([lengthBuffer, xdrMessage]);
     },
 
     readXdrFile: function (filePath, successCallback, errorCallback) {
@@ -43,9 +43,9 @@ module.exports = {
             if (!err) {
                 let buffer = Buffer.from(data, 'binary');
                 let next, rem;
-                [next, rem] = xs.getNextMessageFromXdrBuffer(buffer);
-                [next, rem] = xs.getNextMessageFromXdrBuffer(rem);
-                [next, rem] = xs.getNextMessageFromXdrBuffer(rem);
+                [next, rem] = this.getNextMessageFromXdrBuffer(buffer);
+                [next, rem] = this.getNextMessageFromXdrBuffer(rem);
+                [next, rem] = this.getNextMessageFromXdrBuffer(rem);
                 successCallback(next.toString('base64'));
 
             } else {

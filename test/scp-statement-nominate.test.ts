@@ -1,7 +1,7 @@
-const ScpStatement = require('../lib/scp-statement');
+import {SCPStatement} from '../src/scp-statement';
 let scpExternalizeXdr = 'AAAAABztrsEXLl9W0X9JJPkBOBEqpZIMwLO6DNEyb8Of/SwPAAAAAAFCsPsAAAADBbRCDpvX3jlA0ycxYVJdEIB8AzYG01BBXmOll66M5bcAAAACAAAAMPvLgvBDr/YUpaI3Mfz+sMx0oMORDaI4u6KvFKL9WQQfAAAAAFv5qsMAAAAAAAAAAAAAADD7y4LwQ6/2FKWiNzH8/rDMdKDDkQ2iOLuirxSi/VkEHwAAAABb+arEAAAAAAAAAAAAAAABAAAAMPvLgvBDr/YUpaI3Mfz+sMx0oMORDaI4u6KvFKL9WQQfAAAAAFv5qsQAAAAAAAAAAA=';
 
-let scpStatement = ScpStatement.fromXdr(scpExternalizeXdr);
+let scpStatement = SCPStatement.fromXdr(scpExternalizeXdr);
 
 test('slotIndex', () => {
     expect(scpStatement.slotIndex).toEqual('21147899');

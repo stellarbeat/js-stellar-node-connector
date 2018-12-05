@@ -1,7 +1,7 @@
-const ScpStatement = require('../lib/scp-statement');
+import {SCPStatement} from '../src/scp-statement';
 let scpExternalizeXdr = 'AAAAALsrraBmxcawytPurkd8D0zc8+XENcygJRlcKnh8UFvHAAAAAAFCsQEAAAAAoVCmb6BGLJhpbhCZzn7QrT4288ZOVOtY9l+y26P4UOIAAAABAAAAMHssstrhv2RMTgQC3AO+AW/rf7DLXnuwrwC/BrUG1hJJAAAAAFv5quUAAAAAAAAAAAAAAAEAAAABAAAAMHssstrhv2RMTgQC3AO+AW/rf7DLXnuwrwC/BrUG1hJJAAAAAFv5quUAAAAAAAAAAAAAAAAAAAABAAAAAQ==';
 
-let scpStatement = ScpStatement.fromXdr(scpExternalizeXdr);
+let scpStatement = SCPStatement.fromXdr(scpExternalizeXdr);
 
 test('slotIndex', () => {
     expect(scpStatement.slotIndex).toEqual('21147905');
@@ -48,7 +48,7 @@ test('nH', () => {
 });
 
 let xdr = 'AAAAAIwdS0o2ARfVAN/PjN6xZrGaEuD0t7zToaDF6Z5B9peZAAAAAAFCsf4AAAAAaeRARPRhjl8HNOlSKi3rT1jb7T+okrFnTxnpbQVmGJsAAAABAAAAMENWWZhZurxXL9VBF9CujwimyoKTLeaQBKmB3VMI0i9aAAAAAFv5sAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-let statement = ScpStatement.fromXdr(xdr);
+let statement = SCPStatement.fromXdr(xdr);
 
 test('noPrepared', () => {
     expect(statement.prepared).toEqual(undefined);

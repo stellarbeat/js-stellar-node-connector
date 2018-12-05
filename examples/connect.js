@@ -1,7 +1,5 @@
 const Node = require("@stellarbeat/js-stellar-domain").Node;
-const Connection = require("../lib/connection");
-const QuorumSet = require("@stellarbeat/js-stellar-domain").QuorumSet;
-const ConnectionManager = require("../lib/connection-manager");
+const ConnectionManager = require("../lib").ConnectionManager;
 const StellarBase = require('stellar-base');
 
 let connectionManager = new ConnectionManager(
@@ -17,27 +15,10 @@ let connectionManager = new ConnectionManager(
 connect();
 
 function connect() {
-    if (process.argv.length <= 2) {
-        console.log("Parameters: " + "NODE_IP(required) " + "NODE_PORT(default: 11625) " + "TIMEOUT(ms, default:60000)" );
-        process.exit(-1);
-    }
 
-    let ip = process.argv[2];
+    let node = new Node('45.55.22.18');
 
-    let port = process.argv[3];
-    if(!port) {
-        port = 11625;
-    } else {
-        port =  parseInt(port);
-    }
-    let node = new Node(ip, port);
-
-    let timeout = process.argv[4];
-    if(!timeout){
-        timeout = 10000;
-    } else {
-        timeout =  parseInt(timeout);
-    }
+    let timeout = 10000;
 
     let keyPair = StellarBase.Keypair.random(); //use a random keypair to identify this script
     connectionManager.connect(
@@ -45,6 +26,7 @@ function connect() {
         node,
         timeout
     );
+
 }
 
 function onHandshakeCompleted(connection) {
