@@ -24,7 +24,7 @@ export declare class ConnectionManager {
     sendHello(connection: Connection): void;
     continueHandshake(connection: Connection): void;
     finishHandshake(connection: Connection): void;
-    handleData(data: ArrayBuffer, connection: Connection): void;
+    handleData(data: Buffer, connection: Connection): void;
     handleReceivedAuthenticatedMessage(authenticatedMessage: any, connection: Connection): void;
     handleReceivedPeersMessage(peersMessage: any, connection: Connection): void;
     sendGetQuorumSet(hash: Buffer, connection: Connection): void;
