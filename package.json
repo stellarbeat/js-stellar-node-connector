@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --declaration",
-    "examples:connect": "npm run build; node examples/crawl",
+    "examples:connect": "npm run build; node examples/connect",
     "test": "jest"
   },
   "main": "lib/index.js",
