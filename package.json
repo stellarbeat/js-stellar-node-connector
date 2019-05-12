@@ -16,7 +16,7 @@
   "author": "pieterjan84@github",
   "license": "MIT",
   "dependencies": {
-    "@stellarbeat/js-stellar-domain": "^0.5.2",
+    "@stellarbeat/js-stellar-domain": "^0.6.0",
     "bignumber.js": "^4.0.0",
     "curve25519-n": "^1.4.0",
     "dotenv": "^6.1.0",
@@ -26,7 +26,7 @@
     "mysql": "^2.15.0",
     "net": "^1.0.2",
     "ramda": "^0.25.0",
-    "stellar-base": "0.8.2",
+    "stellar-base": "0.13.2",
     "tweetnacl": "^1.0.0",
     "winston": "^3.1.0"
   },

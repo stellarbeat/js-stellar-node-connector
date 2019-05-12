@@ -14,7 +14,7 @@ export class SCPStatement {
         result.type = xdr.pledges().arm();
 
         if(result.type === 'externalize') {
-            result.quorumSetHash = xdr.pledges().value().commitQuorumSetHash().toString('base64'); //todo: does this differ from other quorumSetHashes?
+            result.quorumSetHash = xdr.pledges().value().commitQuorumSetHash().toString('base64');
             result.nH = xdr.pledges().value().nH();
             result.commit = {};
             result.commit.counter = xdr.pledges().value().commit().counter();

@@ -12,6 +12,10 @@ export default {
         return new StellarBase.xdr.StellarMessage.getPeer();
     },
 
+    createGetScpStatusMessage(){
+        return new StellarBase.xdr.StellarMessage.getScpState(0);
+    },
+
     createAuthMessage: function () {
         let auth = new StellarBase.xdr.Auth({unused: 1});
         return new StellarBase.xdr.StellarMessage.auth(auth);

@@ -6,7 +6,6 @@ import messageService from "./message-service";
 import {Connection} from "./connection";
 import * as winston from "winston";
 require('dotenv').config();
-const Transaction = require('stellar-base').Transaction;
 import {SCPStatement} from './scp-statement';
 
 export class ConnectionManager {
@@ -14,9 +13,9 @@ export class ConnectionManager {
     _onHandshakeCompletedCallback: (connection: Connection) => void;
     _onPeersReceivedCallback: (peers: Array<Node>, connection: Connection) => void;
     _onLoadTooHighCallback: (connection: Connection) => void;
-    _onQuorumSetHashDetectedCallback: (connection: Connection, quorumSetHash: string, quorumSetOwnerPublicKey: string) => void;
     _onQuorumSetReceivedCallback: (connection: Connection, quorumSet: QuorumSet) => void;
     _onNodeDisconnectedCallback: (connection: Connection) => void;
+    _onSCPStatementReceivedCallback: (connection: Connection, SCPStatement: SCPStatement) => void;
     _logger: any;
     _dataBuffers:Array<Buffer>;
     _timeouts: Map<string, any>;
@@ -26,7 +25,7 @@ export class ConnectionManager {
         onHandshakeCompletedCallback: (connection: Connection) => void,
         onPeersReceivedCallback: (peers: Array<Node>, connection: Connection) => void,
         onLoadTooHighCallback: (connection: Connection) => void,
-        onQuorumSetHashDetectedCallback: (connection: Connection, quorumSetHash: string, quorumSetOwnerPublicKey: string) => void,
+        onSCPStatementReceivedCallback: (connection: Connection, SCPStatement: SCPStatement) => void,
         onQuorumSetReceivedCallback: (connection: Connection, quorumSet: QuorumSet) => void,
         onNodeDisconnectedCallback: (connection: Connection) => void,
         logger
@@ -35,9 +34,10 @@ export class ConnectionManager {
         this._onHandshakeCompletedCallback = onHandshakeCompletedCallback;
         this._onPeersReceivedCallback = onPeersReceivedCallback;
         this._onLoadTooHighCallback = onLoadTooHighCallback;
-        this._onQuorumSetHashDetectedCallback = onQuorumSetHashDetectedCallback;
         this._onQuorumSetReceivedCallback = onQuorumSetReceivedCallback;
         this._onNodeDisconnectedCallback = onNodeDisconnectedCallback;
+        this._onSCPStatementReceivedCallback = onSCPStatementReceivedCallback;
+
         this._dataBuffers = [];
         this._timeouts = new Map();
         if (usePublicNetwork) {
@@ -134,6 +134,11 @@ export class ConnectionManager {
         this._timeouts.set(connection.toNode.key, durationInMilliseconds);
         this._sockets.get(connection.toNode.key).resume();
     }
+    
+    disconnect(connection: Connection) {
+        clearTimeout(this._timeouts.get(connection.toNode.key));
+        this._sockets.get(connection.toNode.key).end();
+    }
 
     initiateHandShake(connection: Connection) {
         this._logger.log('info',"[CONNECTION] " + connection.toNode.key + ": Initiate handshake");
@@ -219,18 +224,18 @@ export class ConnectionManager {
 
             case 'envelope':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
-                let statement = SCPStatement.fromXdr(authenticatedMessage.message().get().statement());
+                let scpStatement = SCPStatement.fromXdr(authenticatedMessage.message().get().statement());
 
-                this._onQuorumSetHashDetectedCallback(
+                this._onSCPStatementReceivedCallback(
                     connection,
-                    statement.quorumSetHash,
-                    statement.nodeId
+                    scpStatement
                 );
+
                 break;
 
             case 'transaction':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a transaction message.');
-                let transaction = new Transaction(authenticatedMessage.message().get());
+                //let transaction = new Transaction(authenticatedMessage.message().get());
                 break; //todo callback
 
             case 'qSet':
@@ -248,7 +253,8 @@ export class ConnectionManager {
                 break; //todo callback
 
             default:
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': unhandled message type received: ' + authenticatedMessage.message().arm());
+                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': unhandled message type received: ' + authenticatedMessage.message()
+                    .arm());
         }
 
     }
@@ -273,6 +279,15 @@ export class ConnectionManager {
         );
     }
 
+    sendGetScpStatus(connection: Connection) {
+        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP STATUS message');
+
+        this.writeMessageToSocket(
+            connection,
+            messageService.createGetScpStatusMessage()
+        );
+    }
+
     sendGetPeers(connection: Connection) {
         this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET PEERS message');
 
@@ -294,6 +309,7 @@ export class ConnectionManager {
 
     writeMessageToSocket(connection: Connection, message: any /*StellarBase.xdr.StellarMessage*/, handShakeComplete: boolean = true) {
         let socket = this._sockets.get(connection.toNode.key);
+
         if (socket) {
             socket.write(
                 xdrService.getXdrBufferFromMessage(
