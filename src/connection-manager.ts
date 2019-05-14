@@ -279,12 +279,12 @@ export class ConnectionManager {
         );
     }
 
-    sendGetScpStatus(connection: Connection) {
-        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP STATUS message');
+    sendGetScpStatus(connection: Connection, ledgerSequence:number) {
+        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP STATUS message for ledger: ' + ledgerSequence);
 
         this.writeMessageToSocket(
             connection,
-            messageService.createGetScpStatusMessage()
+            messageService.createGetScpStatusMessage(ledgerSequence)
         );
     }
 

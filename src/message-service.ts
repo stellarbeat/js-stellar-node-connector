@@ -12,8 +12,8 @@ export default {
         return new StellarBase.xdr.StellarMessage.getPeer();
     },
 
-    createGetScpStatusMessage(){
-        return new StellarBase.xdr.StellarMessage.getScpState(0);
+    createGetScpStatusMessage(ledgerSequence:number = 0){
+        return new StellarBase.xdr.StellarMessage.getScpState(ledgerSequence);
     },
 
     createAuthMessage: function () {
