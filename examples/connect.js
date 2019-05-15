@@ -50,7 +50,9 @@ function connect() {
 }
 
 function onSCPStatementReceivedCallback(connection, scpStatement) {
-
+    console.log(scpStatement.type);
+    console.log(scpStatement.slotIndex);
+    console.log(scpStatement.nodeId);
 }
 
 function onHandshakeCompleted(connection) {
