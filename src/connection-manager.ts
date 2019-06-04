@@ -106,15 +106,22 @@ export class ConnectionManager {
                 } else {
                     this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Socket error." + err.message);
                 }
+                if(this._sockets.get(connection.toNode.key)) {
+                    clearTimeout(this._timeouts.get(connection.toNode.key));
+                    this._sockets.delete(connection.toNode.key);
+                    this._onNodeDisconnectedCallback(connection);
+                }
             })
             .on('disconnect', function () {
                 this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node disconnected.");
             })
             .on('close', () => {
                 this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node closed connection");
-                clearTimeout(this._timeouts.get(connection.toNode.key));
-                this._sockets.delete(connection.toNode.key);
-                this._onNodeDisconnectedCallback(connection);
+                if(this._sockets.get(connection.toNode.key)) {
+                    clearTimeout(this._timeouts.get(connection.toNode.key));
+                    this._sockets.delete(connection.toNode.key);
+                    this._onNodeDisconnectedCallback(connection);
+                }
             })
             .on('timeout', () => {
                 this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node took too long to respond, disconnecting");
