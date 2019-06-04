@@ -1,10 +1,8 @@
 import {Node} from '@stellarbeat/js-stellar-domain';
-import * as nacl from "tweetnacl";
 import BigNumber from "bignumber.js";
 import * as crypto from "crypto";
-
 const StellarBase = require('stellar-base');
-const curve = require('curve25519-n');
+const sodium = require('sodium-native');
 
 export class Connection { //todo: introduce 'fromNode'
     _keyPair: any; //StellarBase.Keypair;
@@ -20,8 +18,10 @@ export class Connection { //todo: introduce 'fromNode'
 
     constructor(keyPair: any/*StellarBase.Keypair*/, toNode: Node) {
         this._keyPair = keyPair;
-        this._secretKey = curve.makeSecretKey(nacl.randomBytes(32));
-        this._localPublicKey = curve.derivePublicKey(this._secretKey);
+        this._secretKey = Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES);
+        sodium.crypto_sign_ed25519_sk_to_curve25519(this._secretKey, Buffer.concat([this._keyPair.rawSecretKey(), this._keyPair.rawPublicKey()]));
+        this._localPublicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES);
+        sodium.crypto_sign_ed25519_pk_to_curve25519(this._localPublicKey, this._keyPair.rawPublicKey());
         this._localNonce = StellarBase.hash(BigNumber.random());
         this._localSequence = StellarBase.xdr.Uint64.fromString("0");
         //this._remoteSequence = StellarBase.xdr.Uint64.fromString("0");
@@ -87,8 +87,9 @@ export class Connection { //todo: introduce 'fromNode'
 
     deriveSharedKey () {
         if(!this._sharedKey) {
-            let sharedKey = curve.deriveSharedSecret(this.secretKey, this.remotePublicKey);
-            let buf = Buffer.from(sharedKey); // bytes buffer
+            let buf = Buffer.alloc(32);
+                sodium.crypto_scalarmult(buf,this.secretKey, this.remotePublicKey);
+            //let buf = Buffer.from(sharedKey); // bytes buffer
 
             buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey]);
             let zeroSalt = Buffer.alloc(32);

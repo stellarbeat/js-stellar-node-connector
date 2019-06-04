@@ -3,11 +3,9 @@
     "target": "es2016",
     "module": "commonjs",
     "outDir": "lib",
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node"]
   },
-  "files": [
-    "./node_modules/@types/node/index.d.ts"
-  ],
   "include": [
     "src/**/*.ts"
   ],
