@@ -4,7 +4,7 @@
     "module": "commonjs",
     "outDir": "lib",
     "sourceMap": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "strict": false
   },
   "include": [

@@ -1,6 +1,6 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Connect and send commands to nodes in the stellar network",
   "repository": {
     "type": "git",
