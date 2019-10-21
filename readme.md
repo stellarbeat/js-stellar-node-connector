@@ -19,6 +19,6 @@ add log level in .env file
 
 see `src/examples/connect.js` for an example on how to connect to a node
 
-for example connect to an ibm validator: `yarn run examples:connect 169.51.72.53`
+for example connect to an ibm validator: `yar`
 
 For a more elaborate example, checkout the crawler: https://github.com/stellarbeat/js-stellar-node-crawler.git
