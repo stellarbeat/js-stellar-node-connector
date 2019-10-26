@@ -286,7 +286,7 @@
     "@types/istanbul-reports" "^1.1.1"
     "@types/yargs" "^13.0.0"
 
-"@stellarbeat/js-stellar-domain@^0.13.2":
+"@stellarbeat/js-stellar-domain@^0.13":
   version "0.13.2"
   resolved "https://registry.yarnpkg.com/@stellarbeat/js-stellar-domain/-/js-stellar-domain-0.13.2.tgz#59507e8d3000b28459005132814255e95f6f91eb"
   integrity sha512-gS7g//2Ar7mvCqNVdExCtM+G2bml3rV9JuxzwIhrMQe51N+TiThv9pppZcgrJbSE4AZXnnvM6+HJ+Y71irIdMw==
