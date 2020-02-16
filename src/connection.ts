@@ -2,7 +2,7 @@ import {Node} from '@stellarbeat/js-stellar-domain';
 import BigNumber from "bignumber.js";
 import * as crypto from "crypto";
 const StellarBase = require('stellar-base');
-const sodium = require('sodium-native');
+import * as sodium from 'sodium-native'
 
 export class Connection { //todo: introduce 'fromNode'
     _keyPair: any; //StellarBase.Keypair;
@@ -18,9 +18,9 @@ export class Connection { //todo: introduce 'fromNode'
 
     constructor(keyPair: any/*StellarBase.Keypair*/, toNode: Node) {
         this._keyPair = keyPair;
-        this._secretKey = Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES);
+        this._secretKey = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES);
         sodium.crypto_sign_ed25519_sk_to_curve25519(this._secretKey, Buffer.concat([this._keyPair.rawSecretKey(), this._keyPair.rawPublicKey()]));
-        this._localPublicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES);
+        this._localPublicKey = Buffer.alloc(sodium.crypto_box_SECRETKEYBYTES);
         sodium.crypto_sign_ed25519_pk_to_curve25519(this._localPublicKey, this._keyPair.rawPublicKey());
         this._localNonce = StellarBase.hash(BigNumber.random());
         this._localSequence = StellarBase.xdr.Uint64.fromString("0");

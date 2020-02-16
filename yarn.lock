@@ -369,10 +369,22 @@
   dependencies:
     "@types/jest-diff" "*"
 
+"@types/node@*":
+  version "13.7.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.7.1.tgz#238eb34a66431b71d2aaddeaa7db166f25971a0d"
+  integrity sha512-Zq8gcQGmn4txQEJeiXo/KiLpon8TzAl0kmKH4zdWctPj05nWwp1ClMdAVEloqrQKfaC48PNLdgN/aVaLqUrluA==
+
 "@types/node@^10.12.12":
   version "10.14.8"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-10.14.8.tgz#fe444203ecef1162348cd6deb76c62477b2cc6e9"
   integrity sha512-I4+DbJEhLEg4/vIy/2gkWDvXBOOtPKV9EnLhYjMoqxcRW+TTZtUftkHktz/a8suoD5mUL7m6ReLrkPvSsCQQmw==
+
+"@types/sodium-native@^2.3.2":
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/@types/sodium-native/-/sodium-native-2.3.2.tgz#2dbe9bdf4a4513573b46f66b6a6a85ddfb6e7bef"
+  integrity sha512-kJsBN9OCzCwa4FptFKyxT72CpHzDjHYWwHbw+5742OdpCG3efTl8LE9iLxSzhGpFZqvuoHSxIMukv+1v+ZzsHA==
+  dependencies:
+    "@types/node" "*"
 
 "@types/stack-utils@^1.0.1":
   version "1.0.1"
