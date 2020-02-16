@@ -67,9 +67,9 @@ function onHandshakeCompleted(connection) {
 
 function onPeersReceived(peers, connection) {
     console.log('[COMMAND]: peers received:');
-    /*peers.forEach(peer => {
+    peers.forEach(peer => {
         console.log(JSON.stringify(peer));
-    });*/
+    });
 }
 
 function onLoadTooHighReceived(connection) {

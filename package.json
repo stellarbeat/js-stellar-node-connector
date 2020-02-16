@@ -1,6 +1,6 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "0.8.3",
+  "version": "1.0.0",
   "description": "Connect and send commands to nodes in the stellar network",
   "repository": {
     "type": "git",
@@ -18,16 +18,13 @@
   "dependencies": {
     "bignumber.js": "^4.0.0",
     "dotenv": "^6.1.0",
-    "lodash": "^4.17.11",
-    "mysql": "^2.15.0",
     "net": "^1.0.2",
-    "ramda": "^0.25.0",
-    "sodium-native": "^2.4.6",
-    "stellar-base": "2.1.2",
+    "sodium-native": "^2.4.9",
+    "stellar-base": "2.1.4",
     "winston": "^3.1.0"
   },
   "peerDependencies": {
-    "@stellarbeat/js-stellar-domain": "^0.13"
+    "@stellarbeat/js-stellar-domain": "^1.0.0"
   },
   "devDependencies": {
     "@types/jest": "^24.0.18",
@@ -36,6 +33,6 @@
     "merge": ">=1.2.1",
     "ts-jest": "^24.0.2",
     "typescript": "^3.6.2",
-    "@stellarbeat/js-stellar-domain": "^0.13"
+    "@stellarbeat/js-stellar-domain": "^1.0.0"
   }
 }

@@ -1,3 +1,5 @@
+import {hash, Networks} from "stellar-base";
+
 const StellarBase = require('stellar-base');
 import {Node, QuorumSet} from"@stellarbeat/js-stellar-domain";
 import * as net from 'net';
@@ -19,6 +21,7 @@ export class ConnectionManager {
     _logger: any;
     _dataBuffers:Array<Buffer>;
     _timeouts: Map<string, any>;
+    _network: string;
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -41,9 +44,9 @@ export class ConnectionManager {
         this._dataBuffers = [];
         this._timeouts = new Map();
         if (usePublicNetwork) {
-            StellarBase.Network.usePublicNetwork();
+            this._network = Networks.PUBLIC
         } else {
-            StellarBase.Network.useTestNetwork();
+            this._network = Networks.TESTNET
         }
 
         if(!logger) {
@@ -84,7 +87,7 @@ export class ConnectionManager {
         toNode.active = false; //when we can connect to it, or it is overloaded, we mark it as active
         toNode.overLoaded = false; //only when we receive an overloaded message, we mark it as overloaded
         let socket = new net.Socket();
-        socket.setTimeout(2000);
+        socket.setTimeout(2500);
         let connection = new Connection(keyPair, toNode);
         this._sockets.set(connection.toNode.key, socket);
         this.setTimeout(connection, durationInMilliseconds);
@@ -156,7 +159,8 @@ export class ConnectionManager {
         this._logger.log('debug',"[CONNECTION] " + connection.toNode.key + ": Send HELLO message");
         this.writeMessageToSocket(
             connection,
-            messageService.createHelloMessage(connection, StellarBase.Network.current().networkId()),
+            //@ts-ignore
+            messageService.createHelloMessage(connection, hash(this._network)),
             false
         );
     }
