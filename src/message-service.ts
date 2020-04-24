@@ -25,7 +25,7 @@ export default {
                                   stellarNetworkId: Buffer) {
         let hello = new StellarBase.xdr.Hello({ //todo: hardcoded data should come from connection 'fromNode'
             ledgerVersion: 12,
-            overlayVersion: 10,
+            overlayVersion: 13,
             overlayMinVersion: 8,
             networkId: stellarNetworkId,
             versionStr: 'v12.0.0',

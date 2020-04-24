@@ -137,12 +137,15 @@ export class ConnectionManager {
 
     pause(connection: Connection) {
         clearTimeout(this._timeouts.get(connection.toNode.key));
-        this._sockets.get(connection.toNode.key).pause();
+        if(this._sockets.get(connection.toNode.key))
+            this._sockets.get(connection.toNode.key).pause();
     }
 
     resume(connection: Connection, durationInMilliseconds: number) {
-        this._timeouts.set(connection.toNode.key, durationInMilliseconds);
-        this._sockets.get(connection.toNode.key).resume();
+        if(this._sockets.get(connection.toNode.key)){
+            this._sockets.get(connection.toNode.key).resume();
+            this.setTimeout(connection, durationInMilliseconds);
+        }
     }
     
     disconnect(connection: Connection) {
@@ -187,11 +190,13 @@ export class ConnectionManager {
         }
         let xdrMessage = null;
         try {
-            while (xdrService.xdrBufferContainsNextMessage(buffer)) {
-                [xdrMessage, buffer] = xdrService.getNextMessageFromXdrBuffer(buffer);
+            let messageLength = xdrService.getMessageLengthFromXDRBuffer(buffer);
+            while (xdrService.xdrBufferContainsCompleteMessage(buffer, messageLength)) {
+                [xdrMessage, buffer] = xdrService.getMessageFromXdrBuffer(buffer, messageLength);
                 let authenticatedMessage = StellarBase.xdr.AuthenticatedMessage.fromXDR(xdrMessage).get();
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': data contains an authenticated message.');
                 this.handleReceivedAuthenticatedMessage(authenticatedMessage, connection);
+                messageLength = xdrService.getMessageLengthFromXDRBuffer(buffer);
             }
             this._dataBuffers[connection.toNode.key] = buffer;
         }

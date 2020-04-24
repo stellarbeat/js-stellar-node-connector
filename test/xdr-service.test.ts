@@ -4,27 +4,27 @@ let xdrStringWithNextMessage = 'gAAANAAAAAAAAAAAAAAAAAAAAAIAAAAAv2qE3dixC3UHHZmF
 let xdrBufferWithNextMessage = Buffer.from(xdrStringWithNextMessage, 'base64');
 
 test('xdrBufferContainsNextMessage',
-    () => expect(xdrService.xdrBufferContainsNextMessage(xdrBufferWithNextMessage)).toEqual(true)
+    () => expect(xdrService.xdrBufferContainsCompleteMessage(xdrBufferWithNextMessage)).toEqual(true)
 );
 
 let xdrStringWithoutNextMessage = 'gAABaAAAAAAAAAAAAAAAAgAAAAsAAAAAAsUlnka7dHFfp69mUW6kEQ18IpsXLwcYk6yphpesUysAAAAAAULT7wAAAAN1tE4FkHboorc8QsJU7+LkIN2zbNK9MrkY49OpVcEzDwAAAAIAAAAw/0TiDQ==';
 let xdrBufferWithoutNextMessage = Buffer.from(xdrStringWithoutNextMessage, 'base64');
 
 test('xdrBufferDoesNotContainNextMessage',
-    () => expect(xdrService.xdrBufferContainsNextMessage(xdrBufferWithoutNextMessage)).toEqual(false)
+    () => expect(xdrService.xdrBufferContainsCompleteMessage(xdrBufferWithoutNextMessage)).toEqual(false)
 );
 
 let nextMessage = undefined;
 let remainingBuffer = undefined;
 
-[nextMessage, remainingBuffer] = xdrService.getNextMessageFromXdrBuffer(xdrBufferWithNextMessage);
+[nextMessage, remainingBuffer] = xdrService.getMessageFromXdrBuffer(xdrBufferWithNextMessage);
 
 test('getNextMessageFromXdrBuffer',
     () => expect(nextMessage.toString('base64')).toEqual('AAAAAAAAAAAAAAAAAAAAAgAAAAC/aoTd2LELdQcdmYVdAY+WJn3SCHECI7kLh9gb8bgR6g==')
 );
 
 let nextNextMessage = undefined;
-[nextNextMessage, remainingBuffer] = xdrService.getNextMessageFromXdrBuffer(remainingBuffer);
+[nextNextMessage, remainingBuffer] = xdrService.getMessageFromXdrBuffer(remainingBuffer);
 
 test('getNextNextMessageFromXdrBuffer',
     () => expect(nextNextMessage.toString('base64')).toEqual('AAAAAAAAAAAAAAABAAAABQAAADIAAAAAqTm9CAAALWkAAAAAAAAAAKkvb34AAC1pAAAAAAAAAAA23YxJAAAtaQAAAAAAAAAANDdVmQAALWkAAAAAAAAAAKkzSDUAAC1pAAAAAAAAAACer1MIAAAtaQAAAAAAAAAAI8ZHBAAALWkAAAAAAAAAACPGQFcAAC1pAAAAAAAAAACCxkWYAAAtaQAAAAAAAAAAaxSf6AAALWkAAAAAAAAAACv/s4IAAC1pAAAAAAAAAAA2TpjFAAAtaQAAAAAAAAAAsj7l8gAALWkAAAAAAAAAALhIZ40AAC1pAAAAAAAAAACeQEz9AAAtaQAAAAAAAAAAq2DFJwAALWkAAAAAAAAAADZKcDEAAC1pAAAAAAAAAAAnPPzbAAAtaQAAAAAAAAAAcyEZJgAALWkAAAAAAAAAACm+Dn4AAC1pAAAAAAAAAAB04vMyAAAtaQAAAAAAAAAANk4tVQAALWkAAAAAAAAAANRcdnwAAC1pAAAAAAAAAAB9J5EIAAAtaQAAAAAAAAAApeOhygAALWkAAAAAAAAAAK4kOPYAAC1pAAAAAAAAAABnC1mkAAAtaQAAAAAAAAAANqo7KwAALWkAAAAAAAAAADRO0w0AAC1pAAAAAAAAAAABtNQAAAAtaQAAAAAAAAAAcm+nvgAALWkAAAAAAAAAALS/SCYAAC1pAAAAAAAAAAA2SvPwAAAtaQAAAAAAAAAANpKzmAAALWkAAAAAAAAAAJ5VSogAAC1pAAAAAAAAAACyotgHAAAtaQAAAAAAAAAANkoQ2wAALWkAAAAAAAAAADZOAFMAAC1pAAAAAAAAAAA2qm9GAAAtaQAAAAAAAAAANpvTAgAALWkAAAAAAAAAAG/GQiEAAC1pAAAAAAAAAAAju7lmAAAtaQAAAAAAAAAANk7rHwAALWkAAAAAAAAAABfyLQ0AAC1pAAAAAAAAAAA2TjaRAAAtaQAAAAAAAAAANk5J7gAALWkAAAAAAAAAAHRm84QAAC1pAAAAAAAAAAAr/7KvAAAtaQAAAAAAAAAAufEGsgAALWkAAAAAAAAAADZOzt4AAC1pAAAAADKjiRSHBdyaVK1C+7UoMAGGyLJ5D1CjOi7gsns2GEFB')

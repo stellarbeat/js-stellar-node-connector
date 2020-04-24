@@ -16,18 +16,13 @@ export default {
         return length;
     },
 
-    xdrBufferContainsNextMessage: function(buffer){
-        return buffer.length - 4 >= this.getMessageLengthFromXDRBuffer(buffer)
+    xdrBufferContainsCompleteMessage: function(buffer:Buffer, messageLength:number){
+        return buffer.length - 4 >= messageLength;
     },
 
     //returns next message and remaining buffer
-    getNextMessageFromXdrBuffer: function (buffer) {
-        let length = this.getMessageLengthFromXDRBuffer(buffer);
-        let bufferWithouthLengthPrefix = buffer.slice(4, buffer.length);
-        let nextMessageBuffer = bufferWithouthLengthPrefix.slice(0, length);
-        let remainingBuffer = bufferWithouthLengthPrefix.slice(length, bufferWithouthLengthPrefix.length);
-
-        return [nextMessageBuffer, remainingBuffer];
+    getMessageFromXdrBuffer: function (buffer:Buffer, messageLength: number) {
+        return [buffer.slice(4, messageLength), buffer.slice(4+messageLength, buffer.length)];
     },
 
     getXdrBufferFromMessage: function (message) {
@@ -37,20 +32,4 @@ export default {
 
         return Buffer.concat([lengthBuffer, xdrMessage]);
     },
-
-    readXdrFile: function (filePath, successCallback, errorCallback) {
-        fs.readFile(filePath, {encoding: 'binary'}, function (err, data) {
-            if (!err) {
-                let buffer = Buffer.from(data, 'binary');
-                let next, rem;
-                [next, rem] = this.getNextMessageFromXdrBuffer(buffer);
-                [next, rem] = this.getNextMessageFromXdrBuffer(rem);
-                [next, rem] = this.getNextMessageFromXdrBuffer(rem);
-                successCallback(next.toString('base64'));
-
-            } else {
-                errorCallback(err);
-            }
-        });
-    }
 };
