@@ -183,7 +183,7 @@ export class ConnectionManager {
     handleData(data: Buffer, connection: Connection) {
         let buffer = undefined;
 
-        if(this._dataBuffers[connection.toNode.key]) {
+        if(this._dataBuffers[connection.toNode.key] && this._dataBuffers[connection.toNode.key].length > 0) {
             buffer = Buffer.concat([this._dataBuffers[connection.toNode.key], data]);
         } else {
             buffer = data;
@@ -197,6 +197,10 @@ export class ConnectionManager {
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': data contains an authenticated message.');
                 this.handleReceivedAuthenticatedMessage(authenticatedMessage, connection);
                 messageLength = xdrService.getMessageLengthFromXDRBuffer(buffer);
+            }
+
+            if(buffer.length > 0){
+                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': remaining buffer contains incomplete message');
             }
             this._dataBuffers[connection.toNode.key] = buffer;
         }

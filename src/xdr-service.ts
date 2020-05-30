@@ -1,17 +1,13 @@
-import fs = require("fs");
-
 export default {
     getMessageLengthFromXDRBuffer: function (buffer) {
-        let xdrLengthBuffer = buffer.slice(0,4);
-
-        let length = xdrLengthBuffer[0];
+        let length = buffer[0]; //first byte
         length &= 0x7f;
         length <<= 8;
-        length |= xdrLengthBuffer[1];
+        length |= buffer[1];
         length <<= 8;
-        length |= xdrLengthBuffer[2];
+        length |= buffer[2];
         length <<= 8;
-        length |= xdrLengthBuffer[3];
+        length |= buffer[3];
 
         return length;
     },
@@ -22,7 +18,7 @@ export default {
 
     //returns next message and remaining buffer
     getMessageFromXdrBuffer: function (buffer:Buffer, messageLength: number) {
-        return [buffer.slice(4, messageLength), buffer.slice(4+messageLength, buffer.length)];
+        return [buffer.slice(4, messageLength + 4), buffer.slice(4 + messageLength)];
     },
 
     getXdrBufferFromMessage: function (message) {
