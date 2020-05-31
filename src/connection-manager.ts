@@ -151,6 +151,7 @@ export class ConnectionManager {
     disconnect(connection: Connection) {
         clearTimeout(this._timeouts.get(connection.toNode.key));
         this._sockets.get(connection.toNode.key).end();
+        this._sockets.get(connection.toNode.key).destroy();
     }
 
     initiateHandShake(connection: Connection) {

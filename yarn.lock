@@ -597,10 +597,10 @@
   dependencies:
     "@sinonjs/commons" "^1.7.0"
 
-"@stellarbeat/js-stellar-domain@^1.0.0":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@stellarbeat/js-stellar-domain/-/js-stellar-domain-1.0.2.tgz#2a81a1e7b21100d7ce58920ec064a382300c7802"
-  integrity sha512-B7gCdG7QwxcKgTKOnkEJ9IsCYYevNj2/7iIVSNGu7ICkvyUBQNx0Zzsi0gt82dImrHVi0w2U6fd6FR9f8n5+Ww==
+"@stellarbeat/js-stellar-domain@^1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@stellarbeat/js-stellar-domain/-/js-stellar-domain-1.5.0.tgz#06581a60cfeb994cd84ecfea4cee67cd34b2aedf"
+  integrity sha512-RWw3f8FFOumN1pNC/pGzqog7iKH5TAh9dhFAcnChkFxiVaOzGUhqhu63Rm4ClGFqdt+2AIq3yQIWWFwExvDacQ==
   dependencies:
     "@iarna/toml" "^2.2.3"
     find-versions "^3.1.0"
