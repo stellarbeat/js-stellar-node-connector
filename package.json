@@ -1,6 +1,6 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Connect and send commands to nodes in the stellar network",
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
     "winston": "^3.1.0"
   },
   "peerDependencies": {
-    "@stellarbeat/js-stellar-domain": "^1.5.0"
+    "@stellarbeat/js-stellar-domain": "^2.0.0"
   },
   "devDependencies": {
     "@types/jest": "^25.2.3",
