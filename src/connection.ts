@@ -1,22 +1,22 @@
-import {Node} from '@stellarbeat/js-stellar-domain';
 import BigNumber from "bignumber.js";
 import * as crypto from "crypto";
 const StellarBase = require('stellar-base');
 import * as sodium from 'sodium-native'
+import {PeerNode} from "./peer-node";
 
 export class Connection { //todo: introduce 'fromNode'
     _keyPair: any; //StellarBase.Keypair;
-    _toNode: Node;
+    _toNode: PeerNode;
     _secretKey: Buffer;
     _localPublicKey: Buffer;
-    _remotePublicKey: Buffer;
+    _remotePublicKey?: Buffer;
     _localNonce: Buffer;
-    _remoteNonce: Buffer;
+    _remoteNonce?: Buffer;
     _localSequence: any;//StellarBase.xdr.Uint64;
     _remoteSequence: any; //StellarBase.xdr.Uint64;
-    _sharedKey: Buffer;
+    _sharedKey?: Buffer;
 
-    constructor(keyPair: any/*StellarBase.Keypair*/, toNode: Node) {
+    constructor(keyPair: any/*StellarBase.Keypair*/, toNode: PeerNode) {
         this._keyPair = keyPair;
         this._secretKey = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES);
         sodium.crypto_sign_ed25519_sk_to_curve25519(this._secretKey, Buffer.concat([this._keyPair.rawSecretKey(), this._keyPair.rawPublicKey()]));
@@ -32,7 +32,7 @@ export class Connection { //todo: introduce 'fromNode'
         return this._keyPair;
     }
 
-    get toNode(): Node {
+    get toNode(): PeerNode {
         return this._toNode;
     }
 
@@ -64,19 +64,19 @@ export class Connection { //todo: introduce 'fromNode'
         this._remoteSequence = value;
     }
 
-    get remotePublicKey(): Buffer {
+    get remotePublicKey(): Buffer | undefined {
         return this._remotePublicKey;
     }
 
-    set remotePublicKey(value: Buffer) {
+    set remotePublicKey(value: Buffer | undefined) {
         this._remotePublicKey = value;
     }
 
-    get remoteNonce(): Buffer {
+    get remoteNonce(): Buffer | undefined {
         return this._remoteNonce;
     }
 
-    set remoteNonce(value: Buffer) {
+    set remoteNonce(value: Buffer | undefined) {
         this._remoteNonce = value;
     }
 
@@ -88,10 +88,10 @@ export class Connection { //todo: introduce 'fromNode'
     deriveSharedKey () {
         if(!this._sharedKey) {
             let buf = Buffer.alloc(32);
-                sodium.crypto_scalarmult(buf,this.secretKey, this.remotePublicKey);
+                sodium.crypto_scalarmult(buf,this.secretKey, this.remotePublicKey!);
             //let buf = Buffer.from(sharedKey); // bytes buffer
 
-            buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey]);
+            buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey!]);
             let zeroSalt = Buffer.alloc(32);
 
             this._sharedKey = crypto.createHmac('SHA256', zeroSalt).update(buf).digest();
@@ -104,7 +104,7 @@ export class Connection { //todo: introduce 'fromNode'
         let buf = Buffer.concat([
             Buffer.from([0]), //uint8_t = 1 char = 1 byte
             this.localNonce,
-            this.remoteNonce,
+            this.remoteNonce!,
             Buffer.from([1])
         ]);
 

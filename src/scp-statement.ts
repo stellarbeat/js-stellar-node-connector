@@ -2,7 +2,7 @@ const StellarBase = require("stellar-base");
 
 export class SCPStatement {
 
-    static fromXdr(xdr) {
+    static fromXdr(xdr:any) {
         if (typeof xdr === "string") {
             let buffer = Buffer.from(xdr, "base64");
             xdr = StellarBase.xdr.ScpStatement.fromXDR(buffer);
@@ -33,8 +33,8 @@ export class SCPStatement {
 
         if(result.type === 'nominate') {
             result.quorumSetHash = xdr.pledges().value().quorumSetHash().toString('base64');
-            result.votes = xdr.pledges().value().votes().map(vote => vote.toString('base64'));
-            result.accepted = xdr.pledges().value().accepted().map(vote => vote.toString('base64'));
+            result.votes = xdr.pledges().value().votes().map((vote:any) => vote.toString('base64'));
+            result.accepted = xdr.pledges().value().accepted().map((vote:any) => vote.toString('base64'));
         }
 
         if(result.type === 'prepare') {

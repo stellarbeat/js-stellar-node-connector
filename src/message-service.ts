@@ -55,11 +55,11 @@ export default {
             scpQuorumSetMessage.threshold()
         );
 
-        scpQuorumSetMessage.validators().forEach(validator => {
+        scpQuorumSetMessage.validators().forEach((validator:any) => {
             quorumSet.validators.push(StellarBase.StrKey.encodeEd25519PublicKey(validator.get()));
         });
 
-        scpQuorumSetMessage.innerSets().forEach(innerQuorumSet => {
+        scpQuorumSetMessage.innerSets().forEach((innerQuorumSet:any) => {
             quorumSet.innerQuorumSets.push(
                 this.getQuorumSetFromMessage(innerQuorumSet)
             );
@@ -77,11 +77,5 @@ export default {
         connection.toNode.versionStr = helloMessage.versionStr().toString();
         connection.remoteNonce = helloMessage.nonce();
         connection.remotePublicKey = helloMessage.cert().pubkey().key();
-        if(connection.toNode.dateDiscovered === undefined) {
-            connection.toNode.dateDiscovered = new Date();
-            connection.toNode.dateUpdated = connection.toNode.dateDiscovered;
-        } else {
-            connection.toNode.dateUpdated = new Date();
-        }
     }
 };

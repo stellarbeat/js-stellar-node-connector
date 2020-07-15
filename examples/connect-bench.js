@@ -1,4 +1,4 @@
-const PeerNode = require("../lib").PeerNode;
+const Node = require("@stellarbeat/js-stellar-domain").Node;
 const ConnectionManager = require("../lib").ConnectionManager;
 const StellarBase = require('stellar-base');
 
@@ -12,10 +12,14 @@ let connectionManager = new ConnectionManager(
     onQuorumSetReceived,
     onNodeDisconnected
 );
+let keyPair = StellarBase.Keypair.random(); //use a random keypair to identify this script
+let timeout = 3000;
 
-connect();
 
-function connect() {
+
+main();
+
+function main() {
 
     if (process.argv.length <= 2) {
         console.log("Parameters: " + "NODE_IP(required) " + "NODE_PORT(default: 11625) " + "TIMEOUT(ms, default:60000)");
@@ -30,17 +34,18 @@ function connect() {
     } else {
         port = parseInt(port);
     }
-    let node = new PeerNode(ip, port);
+    let node = new Node(ip, port);
 
-    let timeout = process.argv[4];
+    let timeoutParam = process.argv[4];
 
-    if (!timeout) {
-        timeout = 30000;
-    } else {
-        timeout = parseInt(timeout);
+    if (timeoutParam) {
+        timeout = parseInt(timeoutParam);
     }
+    connect(keyPair, node, timeout)
 
-    let keyPair = StellarBase.Keypair.random(); //use a random keypair to identify this script
+}
+
+function connect(keyPair, node, timeout) {
     console.time(node.key)
     connectionManager.connect(
         keyPair,
@@ -51,24 +56,19 @@ function connect() {
 }
 
 function onSCPStatementReceivedCallback(connection, scpStatement) {
-    console.log(scpStatement.type);
-    console.log(scpStatement.slotIndex);
-    console.log(scpStatement.nodeId);
 }
 
 function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");
     console.timeEnd(connection.toNode.key);
-    console.log(JSON.stringify(connection.toNode));
-    connectionManager.sendGetScpStatus(connection, 29929833);
-    /*connectionManager.pause(connection);
+    connectionManager.disconnect(connection)
     setTimeout(() => {
-        connectionManager.resume(connection, 10000);
-    }, 15000)*/
+        connect(keyPair, connection.toNode, timeout)
+    }, 1000)
 }
 
 function onPeersReceived(peers, connection) {
-    console.log('[COMMAND]: peers received:');
+    //console.log('[COMMAND]: peers received:');
     /*peers.forEach(peer => {
         console.log(JSON.stringify(peer));
     });*/

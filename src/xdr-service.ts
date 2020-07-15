@@ -1,5 +1,5 @@
 export default {
-    getMessageLengthFromXDRBuffer: function (buffer) {
+    getMessageLengthFromXDRBuffer: function (buffer:Buffer) {
         let length = buffer[0]; //first byte
         length &= 0x7f;
         length <<= 8;
@@ -21,7 +21,7 @@ export default {
         return [buffer.slice(4, messageLength + 4), buffer.slice(4 + messageLength)];
     },
 
-    getXdrBufferFromMessage: function (message) {
+    getXdrBufferFromMessage: function (message:any) {
         let lengthBuffer = Buffer.allocUnsafe(4);
         let xdrMessage =  message.toXDR();
         lengthBuffer.writeInt32BE(xdrMessage.length, 0);
