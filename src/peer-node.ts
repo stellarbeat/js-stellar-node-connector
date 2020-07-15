@@ -1,5 +1,3 @@
-import {QuorumSet} from "@stellarbeat/js-stellar-domain";
-
 export class PeerNode {
     public ip: string;
     public port: number;
@@ -9,7 +7,6 @@ export class PeerNode {
     public overlayMinVersion?: string;
     public networkId?: string;
     public versionStr?: string;
-    public quorumSet?: QuorumSet;
 
     constructor(ip: string, port: number) {
         this.ip = ip;
