@@ -60,7 +60,7 @@ function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");
     console.timeEnd(connection.toNode.key);
     console.log(JSON.stringify(connection.toNode));
-    connectionManager.sendGetScpStatus(connection, 29929833);
+    connectionManager.sendGetScpStatus(connection, 0);
     /*connectionManager.pause(connection);
     setTimeout(() => {
         connectionManager.resume(connection, 10000);

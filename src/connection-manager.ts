@@ -309,7 +309,7 @@ export class ConnectionManager {
         );
     }
 
-    sendGetScpStatus(connection: Connection, ledgerSequence:number) {
+    sendGetScpStatus(connection: Connection, ledgerSequence:number = 0) {
         this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP STATUS message for ledger: ' + ledgerSequence);
 
         this.writeMessageToSocket(
