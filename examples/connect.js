@@ -51,10 +51,13 @@ function connect() {
 }
 
 function onSCPStatementReceivedCallback(connection, scpStatement) {
-    console.log(scpStatement.type);
-    console.log(scpStatement.slotIndex);
-    console.log(scpStatement.nodeId);
-}
+    if(connection.toNode.publicKey === scpStatement.nodeId){
+        console.log(scpStatement.type);
+        console.log(scpStatement.slotIndex);
+        console.log(scpStatement.nodeId);
+    }
+    }
+
 
 function onHandshakeCompleted(connection) {
     console.log("[COMMAND]: connection established");

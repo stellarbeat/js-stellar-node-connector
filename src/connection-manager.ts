@@ -55,6 +55,10 @@ export class ConnectionManager {
         } else {
             this._logger = logger;
         }
+
+        if(!StellarBase.FastSigning){
+            this._logger.log('warning','[CONNECTION] FastSigning not enabled');
+        }
     }
 
     setLogger(logger: any) {
@@ -254,12 +258,14 @@ export class ConnectionManager {
 
             case 'envelope':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
-                let scpStatement = SCPStatement.fromXdr(authenticatedMessage.message().get().statement());
-
-                this._onSCPStatementReceivedCallback(
-                    connection,
-                    scpStatement
-                );
+                let envelope = authenticatedMessage.message().get();
+                //@ts-ignore
+                if(messageService.verifyScpEnvelopeSignature(envelope, hash(this._network))){
+                    this._onSCPStatementReceivedCallback(
+                        connection,
+                        SCPStatement.fromXdr(envelope.statement())
+                    );
+                }
 
                 break;
 

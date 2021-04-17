@@ -1,3 +1,4 @@
+import {verify, xdr} from "stellar-base";
 const StellarBase = require('stellar-base');
 import {Connection} from './connection';
 import {QuorumSet} from '@stellarbeat/js-stellar-domain';
@@ -49,7 +50,7 @@ export default {
             '.' + peerAddress.ip().get()[3];
     },
 
-    getQuorumSetFromMessage: function(scpQuorumSetMessage:any /*StellarBase.xdr.StellarMessage*/) {
+    getQuorumSetFromMessage: function(scpQuorumSetMessage: xdr.ScpQuorumSet) {
         let quorumSet = new QuorumSet(
             StellarBase.hash(scpQuorumSetMessage.toXDR()).toString('base64'),
             scpQuorumSetMessage.threshold()
@@ -66,6 +67,15 @@ export default {
         });
 
         return quorumSet;
+    },
+
+    verifySignature(publicKey: Buffer, signature: Buffer, message: Buffer){
+        return verify(message, signature, publicKey);
+    },
+
+    verifyScpEnvelopeSignature(scpEnvelope: xdr.ScpEnvelope, network: Buffer){
+        let body = Buffer.concat([network, Buffer.from([0,0,0,1]), scpEnvelope.statement().toXDR()]);
+        return this.verifySignature(scpEnvelope.statement().nodeId().value(), scpEnvelope.signature(), body);
     },
 
     updateNodeInformation: function(helloMessage: any /*StellarBase.xdr.StellarMessage*/, connection: Connection) { //todo callback
