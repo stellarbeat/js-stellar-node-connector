@@ -2,9 +2,9 @@ export class PeerNode {
     public ip: string;
     public port: number;
     public publicKey?: string;
-    public ledgerVersion?: string;
-    public overlayVersion?: string;
-    public overlayMinVersion?: string;
+    public ledgerVersion?: number;
+    public overlayVersion?: number;
+    public overlayMinVersion?: number;
     public networkId?: string;
     public versionStr?: string;
 

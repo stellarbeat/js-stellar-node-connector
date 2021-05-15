@@ -25,9 +25,9 @@ export default {
     createHelloMessage: function (connection: Connection,
                                   stellarNetworkId: Buffer) {
         let hello = new StellarBase.xdr.Hello({ //todo: hardcoded data should come from connection 'fromNode'
-            ledgerVersion: 15,
-            overlayVersion: 16,
-            overlayMinVersion: 15,
+            ledgerVersion: 17,
+            overlayVersion: 17,
+            overlayMinVersion: 16,
             networkId: stellarNetworkId,
             versionStr: 'v15.0.0',
             listeningPort: 11625,
