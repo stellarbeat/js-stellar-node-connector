@@ -1,7 +1,7 @@
-import {hash, Networks} from "stellar-base";
+import {hash, Networks, xdr} from "stellar-base";
 
 const StellarBase = require('stellar-base');
-import {QuorumSet} from"@stellarbeat/js-stellar-domain";
+import {PublicKey, QuorumSet} from "@stellarbeat/js-stellar-domain";
 import * as net from 'net';
 import xdrService from './xdr-service';
 import messageService from "./message-service";
@@ -11,6 +11,8 @@ require('dotenv').config();
 import {SCPStatement} from './scp-statement';
 import {PeerNode} from "./peer-node";
 import {Logger} from "winston";
+import ScpEnvelope = xdr.ScpEnvelope;
+import BigNumber from "bignumber.js";
 
 export class ConnectionManager {
     _sockets: Map<string, net.Socket>;
@@ -24,6 +26,8 @@ export class ConnectionManager {
     _dataBuffers:Map<string, Buffer> = new Map<string, Buffer>();
     _timeouts: Map<string, any>;
     _network: string;
+    _processedEnvelopes: Set<string> = new Set();
+    _maxLedger: Map<PublicKey, BigNumber> = new Map();
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -258,9 +262,21 @@ export class ConnectionManager {
 
             case 'envelope':
                 this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
-                let envelope = authenticatedMessage.message().get();
-                //@ts-ignore
-                if(messageService.verifyScpEnvelopeSignature(envelope, hash(this._network))){
+                let envelope = authenticatedMessage.message().get() as ScpEnvelope;
+                let nodeId = envelope.statement().nodeId().value().toString('base64');
+                let slotId = new BigNumber(envelope.statement().slotIndex().toString());
+                if(this._maxLedger.has(nodeId)){
+                    if(slotId.isLessThan(this._maxLedger.get(nodeId)!)){
+                        break;
+                    }
+                }
+                if(
+                    !this._processedEnvelopes.has(envelope.signature().toString('base64'))
+                    //@ts-ignore
+                    && messageService.verifyScpEnvelopeSignature(envelope, hash(this._network))
+                ){
+                    this._processedEnvelopes.add(envelope.signature().toString('base64'));
+                    this._maxLedger.set(nodeId, slotId);
                     this._onSCPStatementReceivedCallback(
                         connection,
                         SCPStatement.fromXdr(envelope.statement())

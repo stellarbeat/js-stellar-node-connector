@@ -1,4 +1,7 @@
 import xdrService from '../src/xdr-service';
+import {xdr} from "stellar-base";
+import MessageType = xdr.MessageType;
+const StellarBase = require('stellar-base');
 
 let xdrStringWithNextMessage = 'gAAANAAAAAAAAAAAAAAAAAAAAAIAAAAAv2qE3dixC3UHHZmFXQGPliZ90ghxAiO5C4fYG/G4EeqAAANUAAAAAAAAAAAAAAABAAAABQAAADIAAAAAqTm9CAAALWkAAAAAAAAAAKkvb34AAC1pAAAAAAAAAAA23YxJAAAtaQAAAAAAAAAANDdVmQAALWkAAAAAAAAAAKkzSDUAAC1pAAAAAAAAAACer1MIAAAtaQAAAAAAAAAAI8ZHBAAALWkAAAAAAAAAACPGQFcAAC1pAAAAAAAAAACCxkWYAAAtaQAAAAAAAAAAaxSf6AAALWkAAAAAAAAAACv/s4IAAC1pAAAAAAAAAAA2TpjFAAAtaQAAAAAAAAAAsj7l8gAALWkAAAAAAAAAALhIZ40AAC1pAAAAAAAAAACeQEz9AAAtaQAAAAAAAAAAq2DFJwAALWkAAAAAAAAAADZKcDEAAC1pAAAAAAAAAAAnPPzbAAAtaQAAAAAAAAAAcyEZJgAALWkAAAAAAAAAACm+Dn4AAC1pAAAAAAAAAAB04vMyAAAtaQAAAAAAAAAANk4tVQAALWkAAAAAAAAAANRcdnwAAC1pAAAAAAAAAAB9J5EIAAAtaQAAAAAAAAAApeOhygAALWkAAAAAAAAAAK4kOPYAAC1pAAAAAAAAAABnC1mkAAAtaQAAAAAAAAAANqo7KwAALWkAAAAAAAAAADRO0w0AAC1pAAAAAAAAAAABtNQAAAAtaQAAAAAAAAAAcm+nvgAALWkAAAAAAAAAALS/SCYAAC1pAAAAAAAAAAA2SvPwAAAtaQAAAAAAAAAANpKzmAAALWkAAAAAAAAAAJ5VSogAAC1pAAAAAAAAAACyotgHAAAtaQAAAAAAAAAANkoQ2wAALWkAAAAAAAAAADZOAFMAAC1pAAAAAAAAAAA2qm9GAAAtaQAAAAAAAAAANpvTAgAALWkAAAAAAAAAAG/GQiEAAC1pAAAAAAAAAAAju7lmAAAtaQAAAAAAAAAANk7rHwAALWkAAAAAAAAAABfyLQ0AAC1pAAAAAAAAAAA2TjaRAAAtaQAAAAAAAAAANk5J7gAALWkAAAAAAAAAAHRm84QAAC1pAAAAAAAAAAAr/7KvAAAtaQAAAAAAAAAAufEGsgAALWkAAAAAAAAAADZOzt4AAC1pAAAAADKjiRSHBdyaVK1C+7UoMAGGyLJ5D1CjOi7gsns2GEFBgAABaAAAAAAAAAAAAAAAAgAAAAsAAAAAAsUlnka7dHFfp69mUW6kEQ18IpsXLwcYk6yphpesUysAAAAAAULT7wAAAAN1tE4FkHboorc8QsJU7+LkIN2zbNK9MrkY49OpVcEzDwAAAAIAAAAw/0TiDQ==';
 let xdrBufferWithNextMessage = Buffer.from(xdrStringWithNextMessage, 'base64');
@@ -13,6 +16,12 @@ test("xdr", () => {
     let remainingBuffer = undefined;
 
     [nextMessage, remainingBuffer] = xdrService.getMessageFromXdrBuffer(xdrBufferWithNextMessage,  xdrService.getMessageLengthFromXDRBuffer(xdrBufferWithNextMessage));
+    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage))
+    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get())
+    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get().message())
+    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get().message().value())
+    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get().message().switch())
+    console.log(MessageType.auth());
     expect(nextMessage.toString('base64')).toEqual('AAAAAAAAAAAAAAAAAAAAAgAAAAC/aoTd2LELdQcdmYVdAY+WJn3SCHECI7kLh9gb8bgR6g==')
 
     let nextNextMessage = undefined;

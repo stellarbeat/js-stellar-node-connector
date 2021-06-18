@@ -22,7 +22,7 @@ export class Connection { //todo: introduce 'fromNode'
         sodium.crypto_sign_ed25519_sk_to_curve25519(this._secretKey, Buffer.concat([this._keyPair.rawSecretKey(), this._keyPair.rawPublicKey()]));
         this._localPublicKey = Buffer.alloc(sodium.crypto_box_SECRETKEYBYTES);
         sodium.crypto_sign_ed25519_pk_to_curve25519(this._localPublicKey, this._keyPair.rawPublicKey());
-        this._localNonce = StellarBase.hash(BigNumber.random());
+        this._localNonce = StellarBase.hash(BigNumber.random().toString());
         this._localSequence = StellarBase.xdr.Uint64.fromString("0");
         //this._remoteSequence = StellarBase.xdr.Uint64.fromString("0");
         this._toNode = toNode;
@@ -81,7 +81,7 @@ export class Connection { //todo: introduce 'fromNode'
     }
 
     increaseLocalSequenceByOne() {
-        let seq = new BigNumber(this._localSequence).add(1);
+        let seq = new BigNumber(this._localSequence).plus(1);
         this._localSequence = StellarBase.xdr.Uint64.fromString(seq.toString());
     }
 

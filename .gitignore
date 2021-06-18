@@ -4,3 +4,4 @@ dist/
 lib/
 flow-typed/
 .env
+.clinic/
