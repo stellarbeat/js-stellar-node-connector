@@ -16,12 +16,6 @@ test("xdr", () => {
     let remainingBuffer = undefined;
 
     [nextMessage, remainingBuffer] = xdrService.getMessageFromXdrBuffer(xdrBufferWithNextMessage,  xdrService.getMessageLengthFromXDRBuffer(xdrBufferWithNextMessage));
-    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage))
-    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get())
-    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get().message())
-    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get().message().value())
-    console.log(StellarBase.xdr.AuthenticatedMessage.fromXDR(nextMessage).get().message().switch())
-    console.log(MessageType.auth());
     expect(nextMessage.toString('base64')).toEqual('AAAAAAAAAAAAAAAAAAAAAgAAAAC/aoTd2LELdQcdmYVdAY+WJn3SCHECI7kLh9gb8bgR6g==')
 
     let nextNextMessage = undefined;
