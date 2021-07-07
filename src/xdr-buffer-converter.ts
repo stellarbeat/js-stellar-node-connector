@@ -1,3 +1,6 @@
+import {xdr} from "stellar-base";
+import AuthenticatedMessage = xdr.AuthenticatedMessage;
+
 export default {
     getMessageLengthFromXDRBuffer: function (buffer:Buffer) {
         let length = buffer[0]; //first byte
@@ -21,7 +24,7 @@ export default {
         return [buffer.slice(4, messageLength + 4), buffer.slice(4 + messageLength)];
     },
 
-    getXdrBufferFromMessage: function (message:any) {
+    getXdrBufferFromMessage: function (message:AuthenticatedMessage) {
         let lengthBuffer = Buffer.allocUnsafe(4);
         let xdrMessage =  message.toXDR();
         lengthBuffer.writeInt32BE(xdrMessage.length, 0);

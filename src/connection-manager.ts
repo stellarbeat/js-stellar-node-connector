@@ -1,18 +1,23 @@
-import {hash, Networks, xdr} from "stellar-base";
+import {FastSigning, hash, Networks, xdr} from "stellar-base";
 
-const StellarBase = require('stellar-base');
-import {PublicKey, QuorumSet} from "@stellarbeat/js-stellar-domain";
+import {QuorumSet} from "@stellarbeat/js-stellar-domain";
 import * as net from 'net';
-import xdrService from './xdr-service';
-import messageService from "./message-service";
+import xdrBufferConverter from './xdr-buffer-converter';
+import xdrMessageCreator from "./xdr-message-creator";
 import {Connection} from "./connection";
 import * as winston from "winston";
+
 require('dotenv').config();
 import {SCPStatement} from './scp-statement';
 import {PeerNode} from "./peer-node";
 import {Logger} from "winston";
-import ScpEnvelope = xdr.ScpEnvelope;
 import BigNumber from "bignumber.js";
+import {pool, WorkerPool} from 'workerpool';
+import MessageType = xdr.MessageType;
+import {getQuorumSetFromMessage, parseAuthenticatedMessageXDR} from "./xdr-message-handler";
+import * as LRUCache from "lru-cache";
+import AuthenticatedMessage = xdr.AuthenticatedMessage;
+import StellarMessage = xdr.StellarMessage;
 
 export class ConnectionManager {
     _sockets: Map<string, net.Socket>;
@@ -23,11 +28,12 @@ export class ConnectionManager {
     _onNodeDisconnectedCallback: (connection: Connection) => void;
     _onSCPStatementReceivedCallback: (connection: Connection, SCPStatement: SCPStatement) => void;
     _logger!: Logger;
-    _dataBuffers:Map<string, Buffer> = new Map<string, Buffer>();
+    _dataBuffers: Map<string, Buffer> = new Map<string, Buffer>();
     _timeouts: Map<string, any>;
     _network: string;
-    _processedEnvelopes: Set<string> = new Set();
-    _maxLedger: Map<PublicKey, BigNumber> = new Map();
+    protected networkBuffer: Buffer;
+    protected pool: WorkerPool;
+    protected processedEnvelopes = new LRUCache(5000);
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -37,7 +43,7 @@ export class ConnectionManager {
         onSCPStatementReceivedCallback: (connection: Connection, SCPStatement: SCPStatement) => void,
         onQuorumSetReceivedCallback: (connection: Connection, quorumSet: QuorumSet) => void,
         onNodeDisconnectedCallback: (connection: Connection) => void,
-        logger:Logger
+        logger: Logger
     ) {
         this._sockets = new Map();
         this._onHandshakeCompletedCallback = onHandshakeCompletedCallback;
@@ -54,15 +60,20 @@ export class ConnectionManager {
             this._network = Networks.TESTNET
         }
 
-        if(!logger) {
+        //@ts-ignore
+        this.networkBuffer = hash(this._network);
+        if (!logger) {
             this.initializeDefaultLogger();
         } else {
-            this._logger = logger;
+            this._logger = logger.child({app: 'Connector'});
         }
 
-        if(!StellarBase.FastSigning){
-            this._logger.log('warning','[CONNECTION] FastSigning not enabled');
+        if (!FastSigning) {
+            this._logger.log('warning', 'FastSigning not enabled',
+                {'app': 'Connector'});
         }
+
+        this.pool = pool(__dirname + '/worker/stellar-message-xdr-handler.js');
     }
 
     setLogger(logger: any) {
@@ -72,24 +83,27 @@ export class ConnectionManager {
     initializeDefaultLogger() {
         this._logger = winston.createLogger({
             level: process.env.LOG_LEVEL || 'info',
-            format: winston.format.combine(
-                winston.format.colorize(),
-                winston.format.timestamp({
-                    format: 'YYYY-MM-DD HH:mm:ss'
-                }),
-                winston.format.printf(info => `[${info.level}] ${info.timestamp} ${info.message}`)
-            ),
             transports: [
-                new winston.transports.Console()
-            ]
+                new winston.transports.Console({
+                    silent: false
+                })
+            ],
+            defaultMeta: {
+                app: 'Connector'
+            }
         });
+    }
+
+    async terminate() {
+        await this.pool.terminate();
     }
 
     setTimeout(connection: Connection, durationInMilliseconds: number) {
         this._timeouts.set(connection.toNode.key, setTimeout(() => {
-            this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Listen timeout reached, disconnecting');
+            this._logger.log('debug', 'Listen timeout reached, disconnecting',
+                {'host': connection.toNode.key});
             let socket = this._sockets.get(connection.toNode.key);
-            if(socket)
+            if (socket)
                 socket.destroy();
         }, durationInMilliseconds));
     }
@@ -103,268 +117,283 @@ export class ConnectionManager {
 
         socket
             .on('connect', () => {
-                this._logger.log('info','[CONNECTION] ' + connection.toNode.key + ': Connected');
+                this._logger.log('debug', 'Connected',
+                    {'host': connection.toNode.key});
                 this.initiateHandShake(connection);
             })
             .on('data', (data) => {
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Data received.');
+                this._logger.log('debug', 'Rcv data',
+                    {'host': connection.toNode.key});
                 this.handleData(data, connection);
             })
-            .on('error', (err:any) => {
-                if (err.code === "ENOTFOUND") {
-                    this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Socket error. No device found at this address.");
-                } else if (err.code === "ECONNREFUSED") {
-                    this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Socket error. Connection refused with message: " + err.message);
-                } else {
-                    this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Socket error." + err.message);
-                }
-                if(this._sockets.get(connection.toNode.key)) {
+            .on('error', (err: any) => {
+                this._logger.log('info', "Socket error: " + err.code,
+                    {'host': connection.toNode.key});
+
+                if (this._sockets.get(connection.toNode.key)) {
                     clearTimeout(this._timeouts.get(connection.toNode.key));
                     this._sockets.delete(connection.toNode.key);
                     this._onNodeDisconnectedCallback(connection);
                 }
             })
-            .on('disconnect', () => {
-                this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node disconnected.");
-            })
             .on('close', () => {
-                this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node closed connection");
-                if(this._sockets.get(connection.toNode.key)) {
+                this._logger.log('info', "Connection closed",
+                    {'host': connection.toNode.key});
+                if (this._sockets.get(connection.toNode.key)) {
                     clearTimeout(this._timeouts.get(connection.toNode.key));
                     this._sockets.delete(connection.toNode.key);
                     this._onNodeDisconnectedCallback(connection);
                 }
             })
             .on('timeout', () => {
-                this._logger.log('info',"[CONNECTION] " + connection.toNode.key + " Node took too long to respond, disconnecting");
+                this._logger.log('info', "Connection timeout",
+                    {'host': connection.toNode.key});
                 socket.destroy();
             });
 
-        this._logger.log('info','[CONNECTION] ' + connection.toNode.key + ': Connect');
+        this._logger.log('info', 'Connect',
+            {'host': connection.toNode.key});
         socket.connect(connection.toNode.port, connection.toNode.ip);
     }
 
     pause(connection: Connection) {
         clearTimeout(this._timeouts.get(connection.toNode.key));
         let socket = this._sockets.get(connection.toNode.key);
-        if(socket)
+        if (socket)
             socket.pause();
     }
 
     resume(connection: Connection, durationInMilliseconds: number) {
-        if(this._sockets.get(connection.toNode.key)){
+        if (this._sockets.get(connection.toNode.key)) {
             let socket = this._sockets.get(connection.toNode.key);
-            if(socket){
+            if (socket) {
                 socket.resume();
                 this.setTimeout(connection, durationInMilliseconds);
             }
         }
     }
-    
+
     disconnect(connection: Connection) {
         clearTimeout(this._timeouts.get(connection.toNode.key));
         let socket = this._sockets.get(connection.toNode.key);
-        if(socket){
+        if (socket) {
             socket.end();
             socket.destroy();
         }
     }
 
     initiateHandShake(connection: Connection) {
-        this._logger.log('info',"[CONNECTION] " + connection.toNode.key + ": Initiate handshake");
+        this._logger.log('debug', "Initiate handshake",
+            {'host': connection.toNode.key});
         this.sendHello(connection);
     }
 
     sendHello(connection: Connection) {
-        this._logger.log('debug',"[CONNECTION] " + connection.toNode.key + ": Send HELLO message");
+        this._logger.log('debug', "send HELLO",
+            {'host': connection.toNode.key});
         this.writeMessageToSocket(
             connection,
             //@ts-ignore
-            messageService.createHelloMessage(connection, hash(this._network)),
+            xdrMessageCreator.createHelloMessage(connection, hash(this._network)),
             false
         );
     }
 
     continueHandshake(connection: Connection): void {
-        this._logger.log('debug',"[CONNECTION] " + connection.toNode.key + ": Continue handshake");
+        this._logger.log('debug', "send AUTH",
+            {'host': connection.toNode.key});
         this.sendAuthMessage(connection);
     }
 
     finishHandshake(connection: Connection): void {
         let socket = this._sockets.get(connection.toNode.key);
-        if(socket)
+        if (socket)
             socket.setTimeout(30000);
-        this._logger.log('info',"[CONNECTION] " + connection.toNode.key + ": Finish handshake, marking node as active");
+        this._logger.log('info', "handshake completed",
+            {'host': connection.toNode.key});
         this._onHandshakeCompletedCallback(connection);
     }
 
     handleData(data: Buffer, connection: Connection) {
         let buffer = undefined;
-
         let previousBuffer = this._dataBuffers.get(connection.toNode.key);
-        if( previousBuffer && previousBuffer.length > 0) {
+        if (previousBuffer && previousBuffer.length > 0) {
             buffer = Buffer.concat([previousBuffer, data]);
         } else {
             buffer = data;
         }
-        let xdrMessage = null;
+
+        let xdrMessage: Buffer | null = null;
         try {
-            let messageLength = xdrService.getMessageLengthFromXDRBuffer(buffer);
-            while (xdrService.xdrBufferContainsCompleteMessage(buffer, messageLength)) {
-                [xdrMessage, buffer] = xdrService.getMessageFromXdrBuffer(buffer, messageLength);
-                let authenticatedMessage = StellarBase.xdr.AuthenticatedMessage.fromXDR(xdrMessage).get();
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': data contains an authenticated message.');
-                this.handleReceivedAuthenticatedMessage(authenticatedMessage, connection);
-                messageLength = xdrService.getMessageLengthFromXDRBuffer(buffer);
+            let messageLength = xdrBufferConverter.getMessageLengthFromXDRBuffer(buffer);
+            while (xdrBufferConverter.xdrBufferContainsCompleteMessage(buffer, messageLength)) {
+                [xdrMessage, buffer] = xdrBufferConverter.getMessageFromXdrBuffer(buffer, messageLength);
+                this.handleAuthenticatedMessageXDR(xdrMessage, connection);
+                messageLength = xdrBufferConverter.getMessageLengthFromXDRBuffer(buffer);
             }
-
-            if(buffer.length > 0){
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': remaining buffer contains incomplete message');
-            }
-
             this._dataBuffers.set(connection.toNode.key, buffer);
-        }
-        catch (exception) {
-            this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Exception ' + exception);
+        } catch (exception) {
+            this._logger.log('error', 'Exception while parsing msg buffer' + exception,
+                {'host': connection.toNode.key});
         }
     }
 
-    handleReceivedAuthenticatedMessage(authenticatedMessage:any, connection: Connection) {
-        switch (authenticatedMessage.message().arm()) {
+    handleAuthenticatedMessageXDR(authenticatedMessageXDR: Buffer, connection: Connection) {
+        let result = parseAuthenticatedMessageXDR(authenticatedMessageXDR);
+        if (result.isErr()) {
+            this._logger.debug('rcv invalid authenticated msg', {'host': connection.toNode.key});
+            return;
+        }
+        let stellarMessageXDR = result.value.stellarMessageXDR;
 
-            case 'hello':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a HELLO message.');
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Updating toNode information from HELLO message');
-                messageService.updateNodeInformation(
-                    authenticatedMessage.message().get(),
-                    connection
-                );
-                this.continueHandshake(connection);
-                break;
+        try {
+            let messageType = xdr.Int32.fromXDR(result.value.messageTypeXDR);
+            switch (result.value.messageTypeXDR.readInt32BE(0)) {
+                case MessageType.hello().value:
+                    this._logger.log('debug', 'Rcv hello msg',
+                        {'host': connection.toNode.key});
+                    //we parse the xdr in the main thread, because this is a priority message
+                    let hello = xdr.Hello.fromXDR(stellarMessageXDR);//.value();
+                    connection.processHelloMessage(hello);
+                    this.continueHandshake(connection);
+                    break;
 
-            case 'auth':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an AUTH message.');
-                this.finishHandshake(connection);
-                break;
+                case MessageType.auth().value:
+                    this._logger.log('debug', 'rcv auth msg',
+                        {'host': connection.toNode.key});
+                    this.finishHandshake(connection);
+                    break;
 
-            case 'peers':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a PEERS message.');
-                this.handleReceivedPeersMessage(authenticatedMessage.message().get(), connection);
-                break;
+                //we handle a scp quorum set message immediately. However this could be better handled with 'dont have' message parsing.
+                case MessageType.scpQuorumset().value:
+                    this._logger.log('debug', 'rcv scpQuorumSet msg',
+                        {'host': connection.toNode.key});
+                    let scpQuorumSet = xdr.ScpQuorumSet.fromXDR(stellarMessageXDR);
 
-            case 'error':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a an error message: ' + authenticatedMessage.message().get().code().name);
-                if (messageService.isLoadErrorMessage(authenticatedMessage.message().get())) {
-                    if (this._onLoadTooHighCallback)
-                        this._onLoadTooHighCallback(connection);
-                }
-                break;
-
-            case 'envelope':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains an envelope message.');
-                let envelope = authenticatedMessage.message().get() as ScpEnvelope;
-                let nodeId = envelope.statement().nodeId().value().toString('base64');
-                let slotId = new BigNumber(envelope.statement().slotIndex().toString());
-                if(this._maxLedger.has(nodeId)){
-                    if(slotId.isLessThan(this._maxLedger.get(nodeId)!)){
-                        break;
+                    try {
+                        this._onQuorumSetReceivedCallback(
+                            connection,
+                            getQuorumSetFromMessage(scpQuorumSet)
+                        );
+                    } catch (exception) {
+                        this._logger.log('debug', exception);
                     }
-                }
-                if(
-                    !this._processedEnvelopes.has(envelope.signature().toString('base64'))
-                    //@ts-ignore
-                    && messageService.verifyScpEnvelopeSignature(envelope, hash(this._network))
-                ){
-                    this._processedEnvelopes.add(envelope.signature().toString('base64'));
-                    this._maxLedger.set(nodeId, slotId);
-                    this._onSCPStatementReceivedCallback(
-                        connection,
-                        SCPStatement.fromXdr(envelope.statement())
-                    );
-                }
 
-                break;
+                    break;
 
-            case 'transaction':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a transaction message.');
-                //let transaction = new Transaction(authenticatedMessage.message().get());
-                break; //todo callback
+                case MessageType.errorMsg().value:
+                    let error = xdr.Error.fromXDR(stellarMessageXDR);
+                    if (error.code() === xdr.ErrorCode.errLoad()) {
+                        this._logger.log('info', 'rcv high load msg',
+                            {'host': connection.toNode.key});
+                        if (this._onLoadTooHighCallback)
+                            this._onLoadTooHighCallback(connection);
+                    }
+                    break;
 
-            case 'qSet':
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Authenticated message contains a scpQuorumset message.');
+                //queued worker pool messages
+                case MessageType.peers().value:
+                    this._logger.log('debug', 'rcv peer msg',
+                        {'host': connection.toNode.key});
+                    this.pool.proxy()
+                        .then(worker => {
+                            return worker.handlePeersMessageXDR(stellarMessageXDR, this.networkBuffer);
+                        })
+                        .then((peers) => {
+                            //@ts-ignore
+                                this._onPeersReceivedCallback(peers, connection);
+                            }
+                        ).catch(error => {
+                        this._logger.error('Error parsing peers msg',
+                            {'host': connection.toNode.key, 'error': error.message});
+                    });
+                    break;
+                case MessageType.scpMessage().value:
+                    this._logger.debug('rcv scp msg', {'host': connection.toNode.key});
+                    if (this.processedEnvelopes.has(stellarMessageXDR.toString('base64'))) {
+                        return;
+                    }
+                    this.processedEnvelopes.set(stellarMessageXDR.toString('base64'), 1);
+                    this.pool.proxy()
+                        .then(worker => {
+                            return worker.handleSCPMessageXDR(stellarMessageXDR, this.networkBuffer)
+                        })
+                        .then((message) => {
+                            //@ts-ignore
+                                this._onSCPStatementReceivedCallback(connection, message);
+                            }
+                        ).catch(error => {
+                        this._logger.error('Error parsing scp msg',
+                            {'host': connection.toNode.key, 'error': error.message});
+                    });
 
-                try {
-                    this._onQuorumSetReceivedCallback(
-                        connection,
-                        messageService.getQuorumSetFromMessage(authenticatedMessage.message().get())
-                    );
-                } catch (exception) {
-                    this._logger.log('debug',exception);
-                }
+                    break;
 
-                break; //todo callback
+                //todo: define in app settings if transactions should be processed.
+                case MessageType.transaction().value://transaction
+                    this._logger.log('debug', 'rcv transaction msg',
+                            {'host': connection.toNode.key});
+                    break;
 
-            default:
-                this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': unhandled message type received: ' + authenticatedMessage.message()
-                    .arm());
+                default:
+                    this._logger.log('debug', 'rcv unsupported msg type' + messageType,
+                        {'host': connection.toNode.key});
+            }
+        } catch
+            (e) {
+            console.log(e)
         }
 
-    }
-
-    handleReceivedPeersMessage(peersMessage:any, connection: Connection) {
-        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': PEERS message contains ' + peersMessage.length + " peers");
-
-        this._onPeersReceivedCallback(peersMessage.map((peerAddress:any) => {
-            return new PeerNode(
-                messageService.getIpFromPeerAddress(peerAddress),
-                peerAddress.port()
-            )
-        }), connection);
     }
 
     sendGetQuorumSet(hash: Buffer, connection: Connection) {
-        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP QUORUM SET message');
+        this._logger.log('debug', 'send get quorum set',
+            {'host': connection.toNode.key});
 
         this.writeMessageToSocket(
             connection,
-            messageService.createScpQuorumSetMessage(hash)
+            xdrMessageCreator.createScpQuorumSetMessage(hash)
         );
     }
 
-    sendGetScpStatus(connection: Connection, ledgerSequence:number = 0) {
-        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET SCP STATUS message for ledger: ' + ledgerSequence);
+    sendGetScpStatus(connection: Connection, ledgerSequence: number = 0) {
+        this._logger.log('debug', 'send get scp status for ledger: ' + ledgerSequence,
+            {'host': connection.toNode.key});
 
         this.writeMessageToSocket(
             connection,
-            messageService.createGetScpStatusMessage(ledgerSequence)
+            xdrMessageCreator.createGetScpStatusMessage(ledgerSequence)
         );
     }
 
     sendGetPeers(connection: Connection) {
-        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending GET PEERS message');
+        this._logger.log('debug', 'send get peers msg',
+            {'host': connection.toNode.key});
 
         this.writeMessageToSocket(
             connection,
-            messageService.createGetPeersMessage()
+            xdrMessageCreator.createGetPeersMessage()
         );
     }
 
     sendAuthMessage(connection: Connection) {
-        this._logger.log('debug','[CONNECTION] ' + connection.toNode.key + ': Sending AUTH message');
+        this._logger.log('debug', 'send auth msg',
+            {'host': connection.toNode.key});
 
         this.writeMessageToSocket(
             connection,
-            messageService.createAuthMessage(),
+            xdrMessageCreator.createAuthMessage(),
             false
         );
     }
 
-    writeMessageToSocket(connection: Connection, message: any /*StellarBase.xdr.StellarMessage*/, handShakeComplete: boolean = true) {
+    writeMessageToSocket(connection: Connection, message: StellarMessage, handShakeComplete: boolean = true
+    ) {
         let socket = this._sockets.get(connection.toNode.key);
 
         if (socket) {
             socket.write(
-                xdrService.getXdrBufferFromMessage(
+                xdrBufferConverter.getXdrBufferFromMessage(
                     connection.authenticateMessage(message, handShakeComplete)
                 )
             );

@@ -1,4 +1,4 @@
-import xdrService from '../src/xdr-service';
+import xdrService from '../src/xdr-buffer-converter';
 import {xdr} from "stellar-base";
 import MessageType = xdr.MessageType;
 const StellarBase = require('stellar-base');

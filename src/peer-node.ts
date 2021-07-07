@@ -1,3 +1,6 @@
+import {StrKey, xdr} from "stellar-base";
+import {Connection} from "./connection";
+
 export class PeerNode {
     public ip: string;
     public port: number;
@@ -15,5 +18,14 @@ export class PeerNode {
 
     get key() {
         return this.ip + ":" + this.port;
+    }
+
+    updateFromHelloMessage(helloMessage: xdr.Hello) { 
+        this.publicKey = StrKey.encodeEd25519PublicKey(helloMessage.peerId().value());
+        this.ledgerVersion = helloMessage.ledgerVersion();
+        this.overlayVersion = helloMessage.overlayVersion();
+        this.overlayMinVersion = helloMessage.overlayMinVersion();
+        this.networkId = helloMessage.networkId().toString('base64');
+        this.versionStr = helloMessage.versionStr().toString();
     }
 }

@@ -1,57 +1,132 @@
+import {xdr} from "stellar-base";
+import {err, ok, Result} from "neverthrow";
+import BigNumber from "bignumber.js";
+
 const StellarBase = require("stellar-base");
 
+export type ScpStatementPledges = ScpStatementPrepare | ScpStatementConfirm | ScpStatementExternalize | ScpNomination;
+
+export interface ScpStatementConfirm {
+    ballot: ScpBallot;
+    nPrepared: number;
+    nCommit: number;
+    nH: number;
+    quorumSetHash: string;
+}
+
+export interface ScpStatementPrepare {
+    quorumSetHash: string;
+    ballot: ScpBallot;
+    prepared: null | ScpBallot;
+    preparedPrime: null | ScpBallot;
+    nC: number;
+    nH: number;
+}
+
+export interface ScpBallot {
+    counter: number;
+    value: string; //base64
+}
+
+export interface ScpStatementExternalize {
+    quorumSetHash: string;
+    nH: number;
+    commit: ScpBallot;
+}
+
+export interface ScpNomination {
+    quorumSetHash: string;
+    votes: string[];
+    accepted: string[];
+}
+
+export type SCPStatementType = 'externalize'|'nominate'|'confirm'|'prepare';
+
 export class SCPStatement {
+    nodeId: string;
+    slotIndex: BigNumber;
+    type: SCPStatementType;
+    pledges: ScpStatementPledges
 
-    static fromXdr(xdr:any) {
-        if (typeof xdr === "string") {
-            let buffer = Buffer.from(xdr, "base64");
-            xdr = StellarBase.xdr.ScpStatement.fromXDR(buffer);
+    constructor(nodeId: string, slotIndex: BigNumber, type: SCPStatementType, pledges: ScpStatementPledges) {
+        this.nodeId = nodeId;
+        this.slotIndex = slotIndex;
+        this.type = type;
+        this.pledges = pledges;
+    }
+
+    static fromXdr(xdrInput: string|xdr.ScpStatement): Result<SCPStatement, Error> {
+        if (typeof xdrInput === "string") {
+            let buffer = Buffer.from(xdrInput, "base64");
+            xdrInput = StellarBase.xdr.ScpStatement.fromXDR(buffer) as xdr.ScpStatement;
         }
 
-        let result:any = {};
-        result.nodeId = StellarBase.StrKey.encodeEd25519PublicKey(xdr.nodeId().get()).toString();
-        result.slotIndex = xdr.slotIndex().toString();
-        result.type = xdr.pledges().arm();
+        let nodeId = StellarBase.StrKey.encodeEd25519PublicKey(xdrInput.nodeId().value()).toString();//slow! cache!
+        let slotIndex = new BigNumber(xdrInput.slotIndex().toString());
+        let xdrType = xdrInput.pledges().switch();
+        let pledges:ScpStatementPledges;
+        let type:SCPStatementType;
 
-        if(result.type === 'externalize') {
-            result.quorumSetHash = xdr.pledges().value().commitQuorumSetHash().toString('base64');
-            result.nH = xdr.pledges().value().nH();
-            result.commit = {};
-            result.commit.counter = xdr.pledges().value().commit().counter();
-            result.commit.value = xdr.pledges().value().commit().value().toString('base64');
-        }
-
-        if(result.type === 'confirm') {
-            result.quorumSetHash = xdr.pledges().value().quorumSetHash().toString('base64');
-            result.nH = xdr.pledges().value().nH();
-            result.nPrepared = xdr.pledges().value().nPrepared();
-            result.nCommit = xdr.pledges().value().nCommit();
-            result.ballot = {};
-            result.ballot.counter = xdr.pledges().value().ballot().counter();
-            result.ballot.value = xdr.pledges().value().ballot().value().toString('base64');
-        }
-
-        if(result.type === 'nominate') {
-            result.quorumSetHash = xdr.pledges().value().quorumSetHash().toString('base64');
-            result.votes = xdr.pledges().value().votes().map((vote:any) => vote.toString('base64'));
-            result.accepted = xdr.pledges().value().accepted().map((vote:any) => vote.toString('base64'));
-        }
-
-        if(result.type === 'prepare') {
-            result.quorumSetHash = xdr.pledges().value().quorumSetHash().toString('base64');
-            result.nH = xdr.pledges().value().nH();
-            result.nC = xdr.pledges().value().nC();
-            result.preparedPrime = xdr.pledges().value().preparedPrime();
-            result.ballot = {};
-            result.ballot.counter = xdr.pledges().value().ballot().counter();
-            result.ballot.value = xdr.pledges().value().ballot().value().toString('base64');
-            if(xdr.pledges().value().prepared()){
-                result.prepared = {};
-                result.prepared.counter = xdr.pledges().value().prepared().counter();
-                result.prepared.value = xdr.pledges().value().prepared().value().toString('base64');
+        if (xdrType === xdr.ScpStatementType.scpStExternalize()) {
+            type = 'externalize';
+            let statement = xdrInput.pledges().value() as xdr.ScpStatementExternalize;
+            pledges = {
+                quorumSetHash: statement.commitQuorumSetHash().toString('base64'),
+                nH: statement.nH(),
+                commit: {
+                    counter: statement.commit().counter(),
+                    value: statement.commit().value().toString('base64')
+                }
+            };
+        }else if (xdrType === xdr.ScpStatementType.scpStConfirm()) {
+            let statement = xdrInput.pledges().value() as xdr.ScpStatementConfirm;
+            type='confirm';
+            pledges = {
+                quorumSetHash: statement.quorumSetHash().toString('base64'),
+                nH: statement.nH(),
+                nPrepared: statement.nPrepared(),
+                nCommit: statement.nCommit(),
+                ballot: {
+                    counter: statement.ballot().counter(),
+                    value: statement.ballot().value().toString('base64')
+                }
+            };
+        }else if (xdrType === xdr.ScpStatementType.scpStNominate()) {
+            let statement = xdrInput.pledges().value() as xdr.ScpNomination;
+            type='nominate';
+            pledges = {
+                quorumSetHash: statement.quorumSetHash().toString('base64'),
+                votes: statement.votes().map((vote: any) => vote.toString('base64')),
+                accepted: statement.votes().map((vote: any) => vote.toString('base64'))
             }
+        }else if (xdrType === xdr.ScpStatementType.scpStPrepare()) {
+            type = 'prepare';
+            let statement = xdrInput.pledges().value() as xdr.ScpStatementPrepare;
+            let prepared = statement.prepared();
+            let preparedPrime = statement.preparedPrime();
+            pledges = {
+                quorumSetHash: statement.quorumSetHash().toString('base64'),
+                ballot: {
+                    counter: statement.ballot().counter(),
+                    value: statement.ballot().value().toString('base64')
+                },
+                prepared: prepared ?
+                    {
+                        counter: prepared.counter(),
+                        value: prepared.value().toString('base64')
+                    } : null,
+                preparedPrime: preparedPrime ?
+                    {
+                        counter: preparedPrime.counter(),
+                        value: preparedPrime.value().toString('base64')
+                    } : null,
+                nC: statement.nH(),
+                nH: statement.nC()
+            }
+        } else {
+            return err(new Error('unknown type: ' + xdrType));
         }
 
-        return result;
+        return ok(new SCPStatement(nodeId, slotIndex, type, pledges));
     }
 }

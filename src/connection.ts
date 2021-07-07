@@ -3,6 +3,7 @@ import * as crypto from "crypto";
 const StellarBase = require('stellar-base');
 import * as sodium from 'sodium-native'
 import {PeerNode} from "./peer-node";
+import {xdr} from "stellar-base";
 
 export class Connection { //todo: introduce 'fromNode'
     _keyPair: any; //StellarBase.Keypair;
@@ -143,7 +144,7 @@ export class Connection { //todo: introduce 'fromNode'
         ]);
     }
 
-    authenticateMessage(message: any /*StellarBase.xdr.StellarMessage*/, handShakeComplete:boolean = true): any /*StellarBase.xdr.AuthenticatedMessageV0*/ {
+    authenticateMessage(message: xdr.StellarMessage, handShakeComplete:boolean = true): xdr.AuthenticatedMessage{
         if(handShakeComplete){
             this.increaseLocalSequenceByOne();
         }
@@ -178,5 +179,11 @@ export class Connection { //todo: introduce 'fromNode'
         return new StellarBase.xdr.HmacSha256Mac({
             mac: sendingMac
         });
+    }
+
+    processHelloMessage(hello: xdr.Hello){
+        this.remoteNonce = hello.nonce();
+        this.remotePublicKey = hello.cert().pubkey().key();
+        this.toNode.updateFromHelloMessage(hello);
     }
 }
