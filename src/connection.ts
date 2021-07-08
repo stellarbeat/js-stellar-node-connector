@@ -92,36 +92,6 @@ export class Connection { //todo: introduce 'fromNode'
         return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
     }
 
-    getAuthCert (stellarNetworkId: Buffer) {
-        let curve25519PublicKey = new StellarBase.xdr.Curve25519Public({
-            key: this.connectionAuthentication.publicKeyECDH
-        });
-
-        let now = new Date();
-        let expirationDateInSecondsSinceEpoch = Math.round(now.getTime() / 1000) + 3600;
-
-        let expiration = StellarBase.xdr.Uint64.fromString(expirationDateInSecondsSinceEpoch.toString());
-        let rawSigData = this.getRawSignatureData(curve25519PublicKey, expiration, stellarNetworkId);
-        let sha256RawSigData = StellarBase.hash(rawSigData);
-        let signature = this.keyPair.sign(sha256RawSigData); //sign with the crawler key!!
-
-        return new StellarBase.xdr.AuthCert({
-            pubkey: curve25519PublicKey,
-            expiration: expiration,
-            sig: signature
-        });
-    }
-
-    getRawSignatureData(curve25519PublicKey: any /*StellarBase.xdr.Curve25519Public*/, expiration: any /*StellarBase.xdr.Uint64*/, stellarNetworkId: Buffer) {
-        return Buffer.concat([
-            //@ts-ignore
-            stellarNetworkId,
-            StellarBase.xdr.EnvelopeType.envelopeTypeAuth().toXDR(),
-            expiration.toXDR(),
-            curve25519PublicKey.toXDR()
-        ]);
-    }
-
     authenticateMessage(message: xdr.StellarMessage): Result<xdr.AuthenticatedMessage, Error>{
         try {
             let xdrAuthenticatedMessageV1 = new StellarBase.xdr.AuthenticatedMessageV0({

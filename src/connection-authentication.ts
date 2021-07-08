@@ -1,20 +1,36 @@
-import {Keypair} from "stellar-base";
+import {hash, Keypair, xdr} from "stellar-base";
 import * as sodium from 'sodium-native'
 import * as crypto from "crypto";
+import EnvelopeType = xdr.EnvelopeType;
+import Uint64 = xdr.Uint64;
+import Auth = xdr.Auth;
+import UnsignedHyper = xdr.UnsignedHyper;
 
 type Curve25519SecretBuffer = Buffer;
 type Curve25519PublicBuffer = Buffer;
+
+interface AuthCert {
+    publicKeyECDH: Curve25519PublicBuffer,
+    expiration: UnsignedHyper,
+    signature: Buffer
+}
 
 export class ConnectionAuthentication { //todo: introduce 'fromNode'
     secretKeyECDH: Curve25519SecretBuffer;
     publicKeyECDH: Curve25519PublicBuffer;
     sharedKeys: Map<string, Buffer> = new Map();
+    authCert: AuthCert;
+    networkId: Buffer;
+    keyPair: Keypair;
 
-    constructor(keyPair: Keypair) {
+    constructor(keyPair: Keypair, networkId: Buffer) {
+        this.networkId = networkId;
+        this.keyPair = keyPair;
         this.secretKeyECDH = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES);
         sodium.crypto_sign_ed25519_sk_to_curve25519(this.secretKeyECDH, Buffer.concat([keyPair.rawSecretKey(), keyPair.rawPublicKey()]));
         this.publicKeyECDH = Buffer.alloc(sodium.crypto_box_SECRETKEYBYTES);
         sodium.crypto_sign_ed25519_pk_to_curve25519(this.publicKeyECDH, keyPair.rawPublicKey());
+        this.authCert = this.createAuthCert(); //todo: expiration
     }
 
     getSharedKey(remotePublicKeyECDH: Curve25519PublicBuffer) {//we are the connector initiators
@@ -23,7 +39,6 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         if(!sharedKey) {
             let buf = Buffer.alloc(32);
                 sodium.crypto_scalarmult(buf,this.secretKeyECDH, remotePublicKeyECDH);
-            //let buf = Buffer.from(sharedKey); // bytes buffer
 
             buf = Buffer.concat([buf, this.publicKeyECDH, remotePublicKeyECDH]);
             let zeroSalt = Buffer.alloc(32);
@@ -34,4 +49,27 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
 
         return sharedKey;
     }
+
+    protected createAuthCert (): AuthCert {
+        let now = new Date();
+        let expirationDateInSecondsSinceEpoch = Math.round(now.getTime() / 1000) + 3600;
+        let expiration = Uint64.fromString(expirationDateInSecondsSinceEpoch.toString());
+        let rawSigData = Buffer.concat([
+            //@ts-ignore
+            this.networkId,
+            //@ts-ignore
+            EnvelopeType.envelopeTypeAuth().toXDR(),
+            expiration.toXDR(),
+            this.publicKeyECDH
+        ]);
+        let sha256RawSigData = hash(rawSigData);
+        let signature = this.keyPair.sign(sha256RawSigData);
+
+        return {
+            publicKeyECDH: this.publicKeyECDH,
+            expiration: expiration,
+            signature: signature
+        }
+    }
+
 }

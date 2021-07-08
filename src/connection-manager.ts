@@ -65,10 +65,10 @@ export class ConnectionManager {
         this._onNodeDisconnectedCallback = onNodeDisconnectedCallback;
         this._onSCPStatementReceivedCallback = onSCPStatementReceivedCallback;
         let privateKey = process.env.CONNECTION_PRIVATE_KEY;
-        if(privateKey){
-            try{
+        if (privateKey) {
+            try {
                 this.keyPair = Keypair.fromSecret(privateKey);
-            }catch (error){
+            } catch (error) {
                 throw new Error("Invalid private key");
             }
         } else {
@@ -76,7 +76,6 @@ export class ConnectionManager {
         }
         this.logger.info("Using public key: " + this.keyPair.publicKey());
 
-        this.connectionAuthication = new ConnectionAuthentication(this.keyPair);
 
         if (usePublicNetwork) {
             this.network = Networks.PUBLIC
@@ -87,11 +86,13 @@ export class ConnectionManager {
         //@ts-ignore
         this.networkBuffer = hash(this.network);
 
+
         if (!FastSigning) {
             this.logger.log('warning', 'FastSigning not enabled',
                 {'app': 'Connector'});
         }
 
+        this.connectionAuthication = new ConnectionAuthentication(this.keyPair, this.networkBuffer);
         this.pool = pool(__dirname + '/worker/stellar-message-xdr-handler.js');
     }
 
@@ -116,7 +117,7 @@ export class ConnectionManager {
     connect(toNode: PeerNode) {
         let socket = new net.Socket();
         let socketTimeoutString = process.env.SOCKET_TIMEOUT;
-        if(socketTimeoutString && !isNaN(parseInt(socketTimeoutString))){
+        if (socketTimeoutString && !isNaN(parseInt(socketTimeoutString))) {
             socket.setTimeout(parseInt(socketTimeoutString));
         } else {
             socket.setTimeout(2500);
@@ -161,19 +162,19 @@ export class ConnectionManager {
         await this.pool.terminate();
     }
 
-    pause(node: PeerNode):Result<void, Error> {
+    pause(node: PeerNode): Result<void, Error> {
         let connection = this.activeConnections.get(node.key);
-        if(!connection)
+        if (!connection)
             return err(new Error("No active connection"));
 
         connection.socket.pause();
 
         return ok(undefined);
-   }
+    }
 
-    resume(node: PeerNode):Result<void, Error> {
+    resume(node: PeerNode): Result<void, Error> {
         let connection = this.activeConnections.get(node.key);
-        if(!connection)
+        if (!connection)
             return err(new Error("No active connection"));
 
         connection.socket.resume();
@@ -181,11 +182,11 @@ export class ConnectionManager {
 
     }
 
-    disconnect(node: PeerNode):Result<void, Error> {
+    disconnect(node: PeerNode): Result<void, Error> {
         this.logger.log('debug', 'disconnect requested',
             {'host': node.key});
         let connection = this.activeConnections.get(node.key);
-        if(!connection)
+        if (!connection)
             return err(new Error("No active connection"));
 
         connection.socket.destroy();
@@ -202,7 +203,7 @@ export class ConnectionManager {
             xdrMessageCreator.createScpQuorumSetMessage(hash)
         );
 
-        if(result.isErr())
+        if (result.isErr())
             return err(result.error);
 
         return ok(undefined);
@@ -217,7 +218,7 @@ export class ConnectionManager {
             xdrMessageCreator.createGetScpStatusMessage(ledgerSequence)
         )
 
-        if(result.isErr())
+        if (result.isErr())
             return err(result.error);
 
         return ok(undefined);
@@ -232,15 +233,15 @@ export class ConnectionManager {
             xdrMessageCreator.createGetPeersMessage()
         )
 
-        if(result.isErr())
+        if (result.isErr())
             return err(result.error);
 
         return ok(undefined);
     }
 
-    isNodeConnected(node: PeerNode){//for the outside world, a node is connected when it has completed a handshake
+    isNodeConnected(node: PeerNode) {//for the outside world, a node is connected when it has completed a handshake
         let connection = this.activeConnections.get(node.key);
-        if(!connection)
+        if (!connection)
             return false;
 
         return connection.handshakeCompleted;
@@ -249,14 +250,21 @@ export class ConnectionManager {
     protected initiateHandShake(connection: Connection) {
         this.logger.log('debug', "send HELLO",
             {'host': connection.toNode.key});
+        let helloResult = xdrMessageCreator.createHelloMessage(connection, this.networkBuffer);
+        if (helloResult.isErr()) {
+            this.logger.log('error', "error creating hello msg",
+                {'host': connection.toNode.key, error: helloResult.error});
+            return;
+        }
+
         let result = this.sendStellarMessage(
             connection.toNode,
             //@ts-ignore
-            xdrMessageCreator.createHelloMessage(connection, this.networkBuffer),
-           true
+            helloResult.value,
+            true
         );
 
-        if(result.isErr())
+        if (result.isErr())
             this.logger.log('debug', 'send hello msg failed',
                 {'host': connection.toNode.key, error: result.error.message});
     }
@@ -328,14 +336,14 @@ export class ConnectionManager {
                 case MessageType.scpQuorumset().value:
                     this.logger.log('debug', 'rcv scpQuorumSet msg',
                         {'host': connection.toNode.key});
-                        let quorumSetResult = handleSCPQuorumSetMessageXDR(stellarMessageXDR);
-                        if(quorumSetResult.isErr()) {
-                            this.logger.log('debug', 'Error parsing qset msg',
-                                {'host': connection.toNode.key, 'error': quorumSetResult.error.message});
-                        }else {
-                                this._onQuorumSetReceivedCallback(
+                    let quorumSetResult = handleSCPQuorumSetMessageXDR(stellarMessageXDR);
+                    if (quorumSetResult.isErr()) {
+                        this.logger.log('debug', 'Error parsing qset msg',
+                            {'host': connection.toNode.key, 'error': quorumSetResult.error.message});
+                    } else {
+                        this._onQuorumSetReceivedCallback(
                             quorumSetResult.value, connection.toNode
-                                );
+                        );
                     }
                     break;
 
@@ -358,7 +366,7 @@ export class ConnectionManager {
                             return worker.handlePeersMessageXDR(stellarMessageXDR, this.networkBuffer);
                         })
                         .then((peers) => {
-                            //@ts-ignore
+                                //@ts-ignore
                                 this._onPeersReceivedCallback(peers, connection.toNode);
                             }
                         ).catch(error => {
@@ -377,7 +385,7 @@ export class ConnectionManager {
                             return worker.handleSCPMessageXDR(stellarMessageXDR, this.networkBuffer)
                         })
                         .then((message) => {
-                            //@ts-ignore
+                                //@ts-ignore
                                 this._onSCPStatementReceivedCallback(message, connection.toNode);
                             }
                         ).catch(error => {
@@ -390,7 +398,7 @@ export class ConnectionManager {
                 //todo: define in app settings if transactions should be processed.
                 case MessageType.transaction().value://transaction
                     this.logger.log('debug', 'rcv transaction msg',
-                            {'host': connection.toNode.key});
+                        {'host': connection.toNode.key});
                     break;
 
                 default:
@@ -414,41 +422,41 @@ export class ConnectionManager {
             true
         );
 
-        if(result.isErr())
+        if (result.isErr())
             this.logger.log('debug', 'send auth msg failed',
                 {'host': connection.toNode.key, error: result.error.message});
     }
 
-    protected sendStellarMessage(node: PeerNode, message: StellarMessage, handshakeMessage: boolean = false): Result<void, Error>{
-       let connection = this.activeConnections.get(node.key);
-       if(!connection)
-           return err(new Error("No active connection"));
+    protected sendStellarMessage(node: PeerNode, message: StellarMessage, handshakeMessage: boolean = false): Result<void, Error> {
+        let connection = this.activeConnections.get(node.key);
+        if (!connection)
+            return err(new Error("No active connection"));
 
-       if(handshakeMessage && connection.handshakeCompleted)
-           return err(new Error("Cannot send msg, handshake already completed"));
+        if (handshakeMessage && connection.handshakeCompleted)
+            return err(new Error("Cannot send msg, handshake already completed"));
 
-        if(!handshakeMessage && !connection.handshakeCompleted)
+        if (!handshakeMessage && !connection.handshakeCompleted)
             return err(new Error("Cannot send msg, handshake not yet completed"));
 
-       let authMsgResult = connection.authenticateMessage(message);
-       if(message.switch() !== MessageType.hello())
-           connection.increaseLocalSequenceByOne();
+        let authMsgResult = connection.authenticateMessage(message);
+        if (message.switch() !== MessageType.hello())
+            connection.increaseLocalSequenceByOne();
 
-       if(authMsgResult.isErr())
+        if (authMsgResult.isErr())
             return err(authMsgResult.error);
 
         let result = this.writeMessageToSocket(connection.socket, authMsgResult.value);
-        if(result.isErr())
+        if (result.isErr())
             return err(result.error);
 
         return ok(result.value);
     }
 
     protected writeMessageToSocket(socket: net.Socket, message: AuthenticatedMessage): Result<void, Error> {
-        if(!socket.writable)
+        if (!socket.writable)
             return err(new Error("Socket not writable"));
 
-        if(!socket.write(xdrBufferConverter.getXdrBufferFromMessage(message))) //todo: implement callback to notify when command was sent successfully.
+        if (!socket.write(xdrBufferConverter.getXdrBufferFromMessage(message))) //todo: implement callback to notify when command was sent successfully.
             return err(new Error("Could not write to socket"));
 
         return ok(undefined);
