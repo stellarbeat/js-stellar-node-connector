@@ -6,28 +6,24 @@ import {PeerNode} from "./peer-node";
 import {Keypair, xdr} from "stellar-base";
 import {err, ok, Result} from "neverthrow";
 import {Socket} from 'net';
+import {ConnectionAuthentication} from "./connection-authentication";
 
 export class Connection { //todo: introduce 'fromNode'
     _keyPair: any; //StellarBase.Keypair;
     _toNode: PeerNode;
-    _secretKey: Buffer;
-    _localPublicKey: Buffer;
     _remotePublicKey?: Buffer;
     _localNonce: Buffer;
     _remoteNonce?: Buffer;
     _localSequence: any;//StellarBase.xdr.Uint64;
     _remoteSequence: any; //StellarBase.xdr.Uint64;
-    _sharedKey?: Buffer;
     handshakeCompleted: boolean = false;
     socket: Socket;
+    connectionAuthentication: ConnectionAuthentication;
 
-    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket) {
+    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication) {
         this.socket = socket;
+        this.connectionAuthentication = connectionAuth;
         this._keyPair = keyPair;
-        this._secretKey = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES);
-        sodium.crypto_sign_ed25519_sk_to_curve25519(this._secretKey, Buffer.concat([this._keyPair.rawSecretKey(), this._keyPair.rawPublicKey()]));
-        this._localPublicKey = Buffer.alloc(sodium.crypto_box_SECRETKEYBYTES);
-        sodium.crypto_sign_ed25519_pk_to_curve25519(this._localPublicKey, this._keyPair.rawPublicKey());
         this._localNonce = StellarBase.hash(BigNumber.random().toString());
         this._localSequence = StellarBase.xdr.Uint64.fromString("0");
         //this._remoteSequence = StellarBase.xdr.Uint64.fromString("0");
@@ -40,14 +36,6 @@ export class Connection { //todo: introduce 'fromNode'
 
     get toNode(): PeerNode {
         return this._toNode;
-    }
-
-    get secretKey(): Buffer {
-        return this._secretKey;
-    }
-
-    get localPublicKey(): Buffer {
-        return this._localPublicKey;
     }
 
     get localNonce(): Buffer {
@@ -91,21 +79,6 @@ export class Connection { //todo: introduce 'fromNode'
         this._localSequence = StellarBase.xdr.Uint64.fromString(seq.toString());
     }
 
-    deriveSharedKey () {
-        if(!this._sharedKey) {
-            let buf = Buffer.alloc(32);
-                sodium.crypto_scalarmult(buf,this.secretKey, this.remotePublicKey!);
-            //let buf = Buffer.from(sharedKey); // bytes buffer
-
-            buf = Buffer.concat([buf, this.localPublicKey, this.remotePublicKey!]);
-            let zeroSalt = Buffer.alloc(32);
-
-            this._sharedKey = crypto.createHmac('SHA256', zeroSalt).update(buf).digest();
-        }
-
-        return this._sharedKey;
-    }
-
     getSendingMacKey () {
         let buf = Buffer.concat([
             Buffer.from([0]), //uint8_t = 1 char = 1 byte
@@ -114,14 +87,14 @@ export class Connection { //todo: introduce 'fromNode'
             Buffer.from([1])
         ]);
 
-        let sharedKey = this.deriveSharedKey();
+        let sharedKey = this.connectionAuthentication.getSharedKey(this._remotePublicKey!);
 
         return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
     }
 
     getAuthCert (stellarNetworkId: Buffer) {
         let curve25519PublicKey = new StellarBase.xdr.Curve25519Public({
-            key: this.localPublicKey
+            key: this.connectionAuthentication.publicKeyECDH
         });
 
         let now = new Date();

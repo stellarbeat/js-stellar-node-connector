@@ -21,6 +21,7 @@ import * as LRUCache from "lru-cache";
 import StellarMessage = xdr.StellarMessage;
 import {err, ok, Result} from "neverthrow";
 import AuthenticatedMessage = xdr.AuthenticatedMessage;
+import {ConnectionAuthentication} from "./connection-authentication";
 
 type nodeKey = string;
 
@@ -40,6 +41,7 @@ export class ConnectionManager {
     protected networkBuffer: Buffer;
     protected pool: WorkerPool;
     protected processedEnvelopes = new LRUCache(5000);
+    protected connectionAuthication: ConnectionAuthentication;
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -62,7 +64,6 @@ export class ConnectionManager {
         this._onQuorumSetReceivedCallback = onQuorumSetReceivedCallback;
         this._onNodeDisconnectedCallback = onNodeDisconnectedCallback;
         this._onSCPStatementReceivedCallback = onSCPStatementReceivedCallback;
-
         let privateKey = process.env.CONNECTION_PRIVATE_KEY;
         if(privateKey){
             try{
@@ -74,6 +75,8 @@ export class ConnectionManager {
             this.keyPair = Keypair.random();
         }
         this.logger.info("Using public key: " + this.keyPair.publicKey());
+
+        this.connectionAuthication = new ConnectionAuthentication(this.keyPair);
 
         if (usePublicNetwork) {
             this.network = Networks.PUBLIC
@@ -119,7 +122,7 @@ export class ConnectionManager {
             socket.setTimeout(2500);
         }
 
-        let connection = new Connection(this.keyPair, toNode, socket);
+        let connection = new Connection(this.keyPair, toNode, socket, this.connectionAuthication);
 
         socket
             .on('connect', () => {
