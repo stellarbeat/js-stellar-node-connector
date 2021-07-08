@@ -149,11 +149,8 @@ export class Connection { //todo: introduce 'fromNode'
         ]);
     }
 
-    authenticateMessage(message: xdr.StellarMessage, handShakeComplete:boolean = true): Result<xdr.AuthenticatedMessage, Error>{
+    authenticateMessage(message: xdr.StellarMessage): Result<xdr.AuthenticatedMessage, Error>{
         try {
-            if (handShakeComplete) {
-                this.increaseLocalSequenceByOne();
-            }
             let xdrAuthenticatedMessageV1 = new StellarBase.xdr.AuthenticatedMessageV0({
                 sequence: this.localSequence,
                 message: message,

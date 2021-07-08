@@ -427,7 +427,10 @@ export class ConnectionManager {
         if(!handshakeMessage && !connection.handshakeCompleted)
             return err(new Error("Cannot send msg, handshake not yet completed"));
 
-       let authMsgResult = connection.authenticateMessage(message, !handshakeMessage);
+       let authMsgResult = connection.authenticateMessage(message);
+       if(message.switch() !== MessageType.hello())
+           connection.increaseLocalSequenceByOne();
+
        if(authMsgResult.isErr())
             return err(authMsgResult.error);
 
