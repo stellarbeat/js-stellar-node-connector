@@ -5,3 +5,4 @@ lib/
 flow-typed/
 .env
 .clinic/
+build/

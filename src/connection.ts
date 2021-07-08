@@ -3,7 +3,9 @@ import * as crypto from "crypto";
 const StellarBase = require('stellar-base');
 import * as sodium from 'sodium-native'
 import {PeerNode} from "./peer-node";
-import {xdr} from "stellar-base";
+import {Keypair, xdr} from "stellar-base";
+import {err, ok, Result} from "neverthrow";
+import {Socket} from 'net';
 
 export class Connection { //todo: introduce 'fromNode'
     _keyPair: any; //StellarBase.Keypair;
@@ -16,8 +18,11 @@ export class Connection { //todo: introduce 'fromNode'
     _localSequence: any;//StellarBase.xdr.Uint64;
     _remoteSequence: any; //StellarBase.xdr.Uint64;
     _sharedKey?: Buffer;
+    handshakeCompleted: boolean = false;
+    socket: Socket;
 
-    constructor(keyPair: any/*StellarBase.Keypair*/, toNode: PeerNode) {
+    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket) {
+        this.socket = socket;
         this._keyPair = keyPair;
         this._secretKey = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES);
         sodium.crypto_sign_ed25519_sk_to_curve25519(this._secretKey, Buffer.concat([this._keyPair.rawSecretKey(), this._keyPair.rawPublicKey()]));
@@ -144,20 +149,24 @@ export class Connection { //todo: introduce 'fromNode'
         ]);
     }
 
-    authenticateMessage(message: xdr.StellarMessage, handShakeComplete:boolean = true): xdr.AuthenticatedMessage{
-        if(handShakeComplete){
-            this.increaseLocalSequenceByOne();
+    authenticateMessage(message: xdr.StellarMessage, handShakeComplete:boolean = true): Result<xdr.AuthenticatedMessage, Error>{
+        try {
+            if (handShakeComplete) {
+                this.increaseLocalSequenceByOne();
+            }
+            let xdrAuthenticatedMessageV1 = new StellarBase.xdr.AuthenticatedMessageV0({
+                sequence: this.localSequence,
+                message: message,
+                mac: this.getMacForAuthenticatedMessage(message)
+            });
+
+            let authenticatedMessage = new StellarBase.xdr.AuthenticatedMessage(0);
+            authenticatedMessage.set(0, xdrAuthenticatedMessageV1);
+
+            return ok(authenticatedMessage);
+        }catch (error) {
+            return err(error);
         }
-        let xdrAuthenticatedMessageV1 = new StellarBase.xdr.AuthenticatedMessageV0({
-            sequence: this.localSequence,
-            message: message,
-            mac: this.getMacForAuthenticatedMessage(message)
-        });
-
-        let authenticatedMessage = new StellarBase.xdr.AuthenticatedMessage(0);
-        authenticatedMessage.set(0, xdrAuthenticatedMessageV1);
-
-        return authenticatedMessage;
     }
 
     getMacForAuthenticatedMessage(message: any /*StellarBase.xdr.StellarMessage*/) {

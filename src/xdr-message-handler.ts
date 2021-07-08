@@ -45,6 +45,18 @@ export function verifySignature(publicKey: Buffer, signature: Buffer, message: B
     }
 }
 
+export function handleSCPQuorumSetMessageXDR(scpQuorumSetMessageXDR: Buffer): Result<QuorumSet, Error>{
+    try{
+        let scpQuorumSet = xdr.ScpQuorumSet.fromXDR(scpQuorumSetMessageXDR);
+
+        return ok(getQuorumSetFromMessage(scpQuorumSet));
+    } catch (error){
+        return err(error);
+    }
+
+
+}
+
 export function handleSCPMessageXDR(scpMessageXDR: Buffer, network: Buffer): Result<SCPStatement, Error> {
     try {
         let scpEnvelope = xdr.ScpEnvelope.fromXDR(scpMessageXDR);

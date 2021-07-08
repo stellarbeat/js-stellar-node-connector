@@ -18,7 +18,7 @@ connect();
 function connect() {
 
     if (process.argv.length <= 2) {
-        console.log("Parameters: " + "NODE_IP(required) " + "NODE_PORT(default: 11625) " + "TIMEOUT(ms, default:60000)");
+        console.log("Parameters: " + "NODE_IP(required) " + "NODE_PORT(default: 11625) ");
         process.exit(-1);
     }
 
@@ -30,37 +30,23 @@ function connect() {
     } else {
         port = parseInt(port);
     }
-    let node = new PeerNode(ip, port);
-
-    let timeout = process.argv[4];
-
-    if (!timeout) {
-        timeout = 30000;
-    } else {
-        timeout = parseInt(timeout);
-    }
-
-    let keyPair = StellarBase.Keypair.random(); //use a random keypair to identify this script
-    console.time(node.key)
     connectionManager.connect(
-        keyPair,
-        node,
-        timeout
+        new PeerNode(ip, port)
     );
 
 }
 
-function onSCPStatementReceivedCallback(connection, scpStatement) {
+function onSCPStatementReceivedCallback(scpStatement) {
     console.log(scpStatement.type);
     console.log(scpStatement.slotIndex);
     console.log(scpStatement.nodeId);
 }
 
-function onHandshakeCompleted(connection) {
+function onHandshakeCompleted(node) {
     console.log("[COMMAND]: connection established");
-    console.timeEnd(connection.toNode.key);
-    console.log(JSON.stringify(connection.toNode));
-    connectionManager.sendGetScpStatus(connection, 0);
+    console.timeEnd(node.key);
+    console.log(JSON.stringify(node));
+    connectionManager.sendGetScpStatus(node, 0);
     /*connectionManager.pause(connection);
     setTimeout(() => {
         connectionManager.resume(connection, 10000);
