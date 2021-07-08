@@ -235,8 +235,12 @@ export class ConnectionManager {
         return ok(undefined);
     }
 
-    isNodeConnected(node: PeerNode){
-       return this.activeConnections.has(node.key)
+    isNodeConnected(node: PeerNode){//for the outside world, a node is connected when it has completed a handshake
+        let connection = this.activeConnections.get(node.key);
+        if(!connection)
+            return false;
+
+        return connection.handshakeCompleted;
     }
 
     protected initiateHandShake(connection: Connection) {
