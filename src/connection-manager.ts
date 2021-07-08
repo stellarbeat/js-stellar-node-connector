@@ -14,6 +14,8 @@ import {Logger} from "winston";
 import {pool, WorkerPool} from 'workerpool';
 import MessageType = xdr.MessageType;
 import {
+    handleErrorMessageXDR,
+    handleHelloMessageXDR,
     handleSCPQuorumSetMessageXDR,
     parseAuthenticatedMessageXDR
 } from "./xdr-message-handler";
@@ -321,11 +323,15 @@ export class ConnectionManager {
                     this.logger.log('debug', 'Rcv hello msg',
                         {'host': connection.toNode.key});
                     //we parse the xdr in the main thread, because this is a priority message
-                    let hello = xdr.Hello.fromXDR(stellarMessageXDR);//.value();
-                    connection.processHelloMessage(hello);
-                    this.continueHandshake(connection);
+                    let helloResult = handleHelloMessageXDR(stellarMessageXDR, connection);
+                    if(helloResult.isOk())
+                        this.continueHandshake(connection);
+                    else {
+                        this.logger.log('info', 'Error handling hello',
+                            {'host': connection.toNode.key});
+                        connection.socket.destroy();
+                    }
                     break;
-
                 case MessageType.auth().value:
                     this.logger.log('debug', 'rcv auth msg',
                         {'host': connection.toNode.key});
@@ -348,12 +354,18 @@ export class ConnectionManager {
                     break;
 
                 case MessageType.errorMsg().value:
-                    let error = xdr.Error.fromXDR(stellarMessageXDR);
-                    if (error.code() === xdr.ErrorCode.errLoad()) {
+                    let errorResult = handleErrorMessageXDR(stellarMessageXDR);
+                    if(errorResult.isErr()){
+                        this.logger.log('debug', 'Error parsing error msg',
+                            {'host': connection.toNode.key}, errorResult.error);
+                    }else if (errorResult.value.code() === xdr.ErrorCode.errLoad()) {
                         this.logger.log('info', 'rcv high load msg',
                             {'host': connection.toNode.key});
                         if (this._onLoadTooHighCallback)
                             this._onLoadTooHighCallback(connection.toNode);
+                    } else {
+                        this.logger.log('info', 'Error msg received',
+                            {'host': connection.toNode.key, error: errorResult.value.msg()});
                     }
                     break;
 

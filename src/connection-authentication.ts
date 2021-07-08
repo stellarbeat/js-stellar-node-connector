@@ -5,6 +5,9 @@ import EnvelopeType = xdr.EnvelopeType;
 import Uint64 = xdr.Uint64;
 import Auth = xdr.Auth;
 import UnsignedHyper = xdr.UnsignedHyper;
+import {PeerNode} from "./peer-node";
+import {verifySignature} from "./xdr-message-handler";
+import BigNumber from "bignumber.js";
 
 type Curve25519SecretBuffer = Buffer;
 type Curve25519PublicBuffer = Buffer;
@@ -30,7 +33,7 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         sodium.crypto_sign_ed25519_sk_to_curve25519(this.secretKeyECDH, Buffer.concat([keyPair.rawSecretKey(), keyPair.rawPublicKey()]));
         this.publicKeyECDH = Buffer.alloc(sodium.crypto_box_SECRETKEYBYTES);
         sodium.crypto_sign_ed25519_pk_to_curve25519(this.publicKeyECDH, keyPair.rawPublicKey());
-        this.authCert = this.createAuthCert(); //todo: expiration
+        this.authCert = this.createAuthCert(new Date()); //todo: expiration
     }
 
     getSharedKey(remotePublicKeyECDH: Curve25519PublicBuffer) {//we are the connector initiators
@@ -50,9 +53,8 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         return sharedKey;
     }
 
-    protected createAuthCert (): AuthCert {
-        let now = new Date();
-        let expirationDateInSecondsSinceEpoch = Math.round(now.getTime() / 1000) + 3600;
+    public createAuthCert(time:Date): AuthCert {
+        let expirationDateInSecondsSinceEpoch = Math.round(time.getTime() / 1000) + 3600;
         let expiration = Uint64.fromString(expirationDateInSecondsSinceEpoch.toString());
         let rawSigData = Buffer.concat([
             //@ts-ignore
@@ -72,4 +74,24 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         }
     }
 
+    public verifyRemoteAuthCert(time: Date, remotePublicKey: Buffer, authCert: xdr.AuthCert){
+        //@ts-ignore
+        let expiration = new BigNumber(authCert.expiration());
+        if(expiration.lt(Math.round(time.getTime() / 1000))){
+            return false;
+        }
+
+        let rawSigData = Buffer.concat([
+            //@ts-ignore
+            this.networkId,
+            //@ts-ignore
+            EnvelopeType.envelopeTypeAuth().toXDR(),
+            //@ts-ignore
+            authCert.expiration().toXDR(),
+            authCert.pubkey().key()
+        ]);
+        let sha256RawSigData = hash(rawSigData);
+
+        return verifySignature(remotePublicKey, authCert.sig(), sha256RawSigData);
+    }
 }

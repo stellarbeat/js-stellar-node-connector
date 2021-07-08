@@ -3,6 +3,7 @@ import {Connection} from './connection';
 import {err, ok, Result} from "neverthrow";
 import AuthCert = xdr.AuthCert;
 import Hello = xdr.Hello;
+import {ConnectionAuthentication} from "./connection-authentication";
 
 const StellarBase = require('stellar-base');
 
@@ -28,7 +29,7 @@ export default {
     createHelloMessage: function (connection: Connection,
                                   stellarNetworkId: Buffer): Result<Hello, Error> {
         try {
-            let certResult = this.createAuthCert(connection);
+            let certResult = this.createAuthCert(connection.connectionAuthentication);
             if(certResult.isErr())
                 return err(certResult.error);
 
@@ -50,16 +51,16 @@ export default {
         }
     },
 
-    createAuthCert: function (connection: Connection): Result<AuthCert, Error> {
+    createAuthCert: function (connectionAuthentication: ConnectionAuthentication): Result<AuthCert, Error> {
         try {
             let curve25519PublicKey = new StellarBase.xdr.Curve25519Public({
-                key: connection.connectionAuthentication.publicKeyECDH
+                key: connectionAuthentication.publicKeyECDH
             });
 
             return ok(new StellarBase.xdr.AuthCert({
                 pubkey: curve25519PublicKey,
-                expiration: connection.connectionAuthentication.authCert.expiration,
-                sig: connection.connectionAuthentication.authCert.signature
+                expiration: connectionAuthentication.authCert.expiration,
+                sig: connectionAuthentication.authCert.signature
             }));
         } catch (error) {
             return err(error);

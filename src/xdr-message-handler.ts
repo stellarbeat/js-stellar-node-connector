@@ -10,6 +10,8 @@ import {Cursor} from "js-xdr/lib/cursor.js";
 import {SCPStatement} from "./scp-statement";
 import {PeerNode} from "./peer-node";
 import {QuorumSet} from "@stellarbeat/js-stellar-domain";
+import Hello = xdr.Hello;
+import {Connection} from "./connection";
 
 export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<{
     sequenceNumberXDR: Buffer,
@@ -37,24 +39,40 @@ export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<{
     })
 }
 
-export function verifySignature(publicKey: Buffer, signature: Buffer, message: Buffer): Result<boolean, Error> {
+export function verifySignature(publicKey: Buffer, signature: Buffer, message: Buffer): boolean {
+    return crypto_sign_verify_detached(signature, message, publicKey);
+}
+
+export function handleErrorMessageXDR(errorMessageXDR: Buffer): Result<xdr.Error, Error>{
     try {
-        return ok(crypto_sign_verify_detached(signature, message, publicKey));
-    } catch (e: any) {
-        return err(new Error(e.message));
+        let error = xdr.Error.fromXDR(errorMessageXDR);
+        return ok(error);
+    } catch (error) {
+        return err(error);
     }
 }
 
-export function handleSCPQuorumSetMessageXDR(scpQuorumSetMessageXDR: Buffer): Result<QuorumSet, Error>{
-    try{
+export function handleHelloMessageXDR(helloMessageXDR: Buffer, connection: Connection): Result<Hello, Error> {
+    try {
+        let hello = xdr.Hello.fromXDR(helloMessageXDR);
+        let result = connection.processHelloMessage(hello);
+        if (result.isOk())
+            return ok(hello);
+        else
+            return err(result.error);
+    } catch (error) {
+        return err(error);
+    }
+}
+
+export function handleSCPQuorumSetMessageXDR(scpQuorumSetMessageXDR: Buffer): Result<QuorumSet, Error> {
+    try {
         let scpQuorumSet = xdr.ScpQuorumSet.fromXDR(scpQuorumSetMessageXDR);
 
         return ok(getQuorumSetFromMessage(scpQuorumSet));
-    } catch (error){
+    } catch (error) {
         return err(error);
     }
-
-
 }
 
 export function handleSCPMessageXDR(scpMessageXDR: Buffer, network: Buffer): Result<SCPStatement, Error> {
@@ -97,11 +115,11 @@ export function getQuorumSetFromMessage(scpQuorumSetMessage: xdr.ScpQuorumSet) {
         scpQuorumSetMessage.threshold()
     );
 
-    scpQuorumSetMessage.validators().forEach((validator:any) => {
+    scpQuorumSetMessage.validators().forEach((validator: any) => {
         quorumSet.validators.push(StrKey.encodeEd25519PublicKey(validator.get()));//todo: slow
     });
 
-    scpQuorumSetMessage.innerSets().forEach((innerQuorumSet:any) => {
+    scpQuorumSetMessage.innerSets().forEach((innerQuorumSet: any) => {
         quorumSet.innerQuorumSets.push(
             getQuorumSetFromMessage(innerQuorumSet)
         );
@@ -110,7 +128,7 @@ export function getQuorumSetFromMessage(scpQuorumSetMessage: xdr.ScpQuorumSet) {
     return quorumSet;
 }
 
-export function getIpFromPeerAddress (peerAddress: xdr.PeerAddress) {
+export function getIpFromPeerAddress(peerAddress: xdr.PeerAddress) {
     let peerAddressIp = peerAddress.ip().value();
     return peerAddressIp[0] +
         '.' + peerAddressIp[1] +
