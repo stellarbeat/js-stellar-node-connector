@@ -55,10 +55,9 @@ test('handleConfirmSCPMessageXDR', () => {
     let result = handleSCPMessageXDR(xdr, hash(Networks.PUBLIC)) ;
     expect(result.isOk()).toBeTruthy();
     if(result.isOk()){
-        console.log(result);
         expect(result.value.type).toEqual('confirm');
         expect(result.value.nodeId).toEqual('GAZ437J46SCFPZEDLVGDMKZPLFO77XJ4QVAURSJVRZK2T5S7XUFHXI2Z');
-        expect(result.value.slotIndex.toString()).toEqual('36260430');
+        expect(result.value.slotIndex).toEqual('36260430');
         expect((result.value.pledges as ScpStatementConfirm).quorumSetHash).toEqual('NBoKrinq0sel1/AaGeXJf10xQ/vSvgOb3xN3pi8qeGg=');
         expect((result.value.pledges as ScpStatementConfirm).nH).toEqual(1);
         expect((result.value.pledges as ScpStatementConfirm).nCommit).toEqual(1);

@@ -1,6 +1,5 @@
 import {xdr} from "stellar-base";
 import {err, ok, Result} from "neverthrow";
-import BigNumber from "bignumber.js";
 
 const StellarBase = require("stellar-base");
 
@@ -44,11 +43,11 @@ export type SCPStatementType = 'externalize'|'nominate'|'confirm'|'prepare';
 
 export class SCPStatement {
     nodeId: string;
-    slotIndex: BigNumber;
+    slotIndex: string;
     type: SCPStatementType;
     pledges: ScpStatementPledges
 
-    constructor(nodeId: string, slotIndex: BigNumber, type: SCPStatementType, pledges: ScpStatementPledges) {
+    constructor(nodeId: string, slotIndex: string, type: SCPStatementType, pledges: ScpStatementPledges) {
         this.nodeId = nodeId;
         this.slotIndex = slotIndex;
         this.type = type;
@@ -62,7 +61,7 @@ export class SCPStatement {
         }
 
         let nodeId = StellarBase.StrKey.encodeEd25519PublicKey(xdrInput.nodeId().value()).toString();//slow! cache!
-        let slotIndex = new BigNumber(xdrInput.slotIndex().toString());
+        let slotIndex = xdrInput.slotIndex().toString();
         let xdrType = xdrInput.pledges().switch();
         let pledges:ScpStatementPledges;
         let type:SCPStatementType;
