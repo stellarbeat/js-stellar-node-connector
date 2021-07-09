@@ -1,7 +1,7 @@
 /*
 Fast way to determine message type without parsing the whole xdr through the StellarBase xdr class todo: improve doc
  */
-import {crypto_sign_verify_detached} from "sodium-native";
+import {crypto_sign_verify_detached, crypto_auth_verify} from "sodium-native";
 import {hash, StrKey, xdr} from "stellar-base";
 import {ok, err, Result} from 'neverthrow'
 import * as jsXdr from "js-xdr";
@@ -26,7 +26,7 @@ export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<{
     let sequenceNumberXDR = messageXDR.slice(4, 12);
     let messageTypeXDR = messageXDR.slice(12, 16);
     let stellarMessageXDR = messageXDR.slice(16, messageXDR.length - 32);
-    //hmac has length 32 bytes and is only remaining structure in xdr after stellar message
+    //mac has length 32 bytes and is only remaining structure in xdr after stellar message
     //https://github.com/stellar/stellar-core/blob/7cf753cb37530d1ed372a7091fadd233d2f1604a/src/xdr/Stellar-overlay.x#L226
     //another approach would be to get the length by messageType
     let macXDR = messageXDR.slice(messageXDR.length - 32);

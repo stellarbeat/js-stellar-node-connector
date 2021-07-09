@@ -3,9 +3,7 @@ import * as sodium from 'sodium-native'
 import * as crypto from "crypto";
 import EnvelopeType = xdr.EnvelopeType;
 import Uint64 = xdr.Uint64;
-import Auth = xdr.Auth;
 import UnsignedHyper = xdr.UnsignedHyper;
-import {PeerNode} from "./peer-node";
 import {verifySignature} from "./xdr-message-handler";
 import BigNumber from "bignumber.js";
 
@@ -21,7 +19,8 @@ interface AuthCert {
 export class ConnectionAuthentication { //todo: introduce 'fromNode'
     secretKeyECDH: Curve25519SecretBuffer;
     publicKeyECDH: Curve25519PublicBuffer;
-    sharedKeys: Map<string, Buffer> = new Map();
+    weCalledRemoteSharedKeys: Map<string, Buffer> = new Map();
+    remoteCalledUsSharedKeys: Map<string, Buffer> = new Map();
     authCert: AuthCert;
     networkId: Buffer;
     keyPair: Keypair;
@@ -29,32 +28,44 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
     constructor(keyPair: Keypair, networkId: Buffer) {
         this.networkId = networkId;
         this.keyPair = keyPair;
-        this.secretKeyECDH = Buffer.alloc(sodium.crypto_box_PUBLICKEYBYTES);
-        sodium.crypto_sign_ed25519_sk_to_curve25519(this.secretKeyECDH, Buffer.concat([keyPair.rawSecretKey(), keyPair.rawPublicKey()]));
-        this.publicKeyECDH = Buffer.alloc(sodium.crypto_box_SECRETKEYBYTES);
-        sodium.crypto_sign_ed25519_pk_to_curve25519(this.publicKeyECDH, keyPair.rawPublicKey());
+        this.secretKeyECDH = Buffer.alloc(32);
+        sodium.randombytes_buf(this.secretKeyECDH);
+        this.publicKeyECDH = Buffer.alloc(32);
+        sodium.crypto_scalarmult_base(this.publicKeyECDH, this.secretKeyECDH);
         this.authCert = this.createAuthCert(new Date()); //todo: expiration
     }
 
-    getSharedKey(remotePublicKeyECDH: Curve25519PublicBuffer) {//we are the connector initiators
+    getSharedKey(remotePublicKeyECDH: Curve25519PublicBuffer, weCalledRemote: boolean = true) {
         let remotePublicKeyECDHString = remotePublicKeyECDH.toString();
-        let sharedKey = this.sharedKeys.get(remotePublicKeyECDHString);
-        if(!sharedKey) {
-            let buf = Buffer.alloc(32);
-                sodium.crypto_scalarmult(buf,this.secretKeyECDH, remotePublicKeyECDH);
+        let sharedKey;
+        if (weCalledRemote)
+            sharedKey = this.weCalledRemoteSharedKeys.get(remotePublicKeyECDHString);
+        else
+            sharedKey = this.remoteCalledUsSharedKeys.get(remotePublicKeyECDHString);
 
-            buf = Buffer.concat([buf, this.publicKeyECDH, remotePublicKeyECDH]);
+        if (!sharedKey) {
+            let buf = Buffer.alloc(sodium.crypto_scalarmult_BYTES);
+            sodium.crypto_scalarmult(buf, this.secretKeyECDH, remotePublicKeyECDH);
+
+            if (weCalledRemote)
+                buf = Buffer.concat([buf, this.publicKeyECDH, remotePublicKeyECDH]);
+            else
+                buf = Buffer.concat([buf, remotePublicKeyECDH, this.publicKeyECDH]);
+
             let zeroSalt = Buffer.alloc(32);
 
             sharedKey = crypto.createHmac('SHA256', zeroSalt).update(buf).digest();
-            this.sharedKeys.set(remotePublicKeyECDHString, sharedKey);
+            if (weCalledRemote)
+                this.weCalledRemoteSharedKeys.set(remotePublicKeyECDHString, sharedKey);
+            else
+                this.remoteCalledUsSharedKeys.set(remotePublicKeyECDHString, sharedKey);
         }
 
         return sharedKey;
     }
 
-    public createAuthCert(time:Date): AuthCert {
-        let expirationDateInSecondsSinceEpoch = Math.round(time.getTime() / 1000) + 3600;
+    public createAuthCert(time: Date): AuthCert {
+        let expirationDateInSecondsSinceEpoch = Math.round(time.getTime() / 1000) + 3600;//60 minutes expiration
         let expiration = Uint64.fromString(expirationDateInSecondsSinceEpoch.toString());
         let rawSigData = Buffer.concat([
             //@ts-ignore
@@ -74,10 +85,10 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         }
     }
 
-    public verifyRemoteAuthCert(time: Date, remotePublicKey: Buffer, authCert: xdr.AuthCert){
+    public verifyRemoteAuthCert(time: Date, remotePublicKey: Buffer, authCert: xdr.AuthCert) {
         //@ts-ignore
         let expiration = new BigNumber(authCert.expiration());
-        if(expiration.lt(Math.round(time.getTime() / 1000))){
+        if (expiration.lt(Math.round(time.getTime() / 1000))) {
             return false;
         }
 
@@ -93,5 +104,48 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         let sha256RawSigData = hash(rawSigData);
 
         return verifySignature(remotePublicKey, authCert.sig(), sha256RawSigData);
+    }
+
+    public getSendingMacKey(localNonce: Buffer, remoteNonce: Buffer, remotePublicKeyECDH: Curve25519PublicBuffer, weCalledRemote: boolean = true) {
+        let buf = Buffer.concat([
+            weCalledRemote ? Buffer.from([0]) : Buffer.from([1]),
+            localNonce,
+            remoteNonce,
+            Buffer.from([1])
+        ]);
+
+        let sharedKey = this.getSharedKey(remotePublicKeyECDH, weCalledRemote);
+
+        return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
+    }
+
+    public getReceivingMacKey(localNonce: Buffer, remoteNonce: Buffer, remotePublicKeyECDH: Curve25519PublicBuffer, weCalledRemote: boolean = true) {
+        let buf = Buffer.concat([
+            weCalledRemote ? Buffer.from([1]) : Buffer.from([0]),
+            remoteNonce,
+            localNonce,
+            Buffer.from([1])
+        ]);
+
+        let sharedKey = this.getSharedKey(remotePublicKeyECDH);
+
+        return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
+    }
+
+    public getMac(stellarMessageXDR: Buffer, sequence: Buffer, macKey: Buffer) {
+        return crypto.createHmac('SHA256', macKey).update(
+            Buffer.concat([
+                sequence,
+                stellarMessageXDR
+            ])
+        ).digest();
+    }
+
+    public verifyMac(mac: Buffer, receivingMacKey: Buffer, data: Buffer) {
+        let calculatedMac = crypto.createHmac('SHA256', receivingMacKey).update(
+           data
+        ).digest();
+
+        return mac.equals(calculatedMac);
     }
 }

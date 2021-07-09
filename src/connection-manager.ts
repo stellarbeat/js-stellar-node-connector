@@ -314,11 +314,39 @@ export class ConnectionManager {
             this.logger.debug('rcv invalid authenticated msg', {'host': connection.toNode.key});
             return;
         }
-        let stellarMessageXDR = result.value.stellarMessageXDR;
 
         try {
+            let stellarMessageXDR = result.value.stellarMessageXDR;
+
+            if(!connection.remoteSequence.toXDR().equals(result.value.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
+                this.logger.log('debug', 'Drop msg with wrong seq number',
+                    {
+                        'host': connection.toNode.key, 'expected': connection.remoteSequence.toString(),
+                        'received': xdr.Uint64.fromXDR(result.value.sequenceNumberXDR).toString()
+                    });
+                return;
+            }
+
+            let data = Buffer.concat([
+                result.value.sequenceNumberXDR,
+                result.value.messageTypeXDR,
+                result.value.stellarMessageXDR
+            ]);
+
             let messageType = xdr.Int32.fromXDR(result.value.messageTypeXDR);
-            switch (result.value.messageTypeXDR.readInt32BE(0)) {
+            if(messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value){
+                connection.increaseRemoteSequenceByOne();
+                let verified =  connection.connectionAuthentication.verifyMac(result.value.macXDR, connection.receivingMacKey!, data);
+                if(!verified){
+                    this.logger.log('debug', 'Drop msg with invalid mac',
+                        {
+                            'host': connection.toNode.key
+                        });
+                    return;
+                }
+            }
+
+            switch (messageType) {
                 case MessageType.hello().value:
                     this.logger.log('debug', 'Rcv hello msg',
                         {'host': connection.toNode.key});
@@ -365,7 +393,7 @@ export class ConnectionManager {
                             this._onLoadTooHighCallback(connection.toNode);
                     } else {
                         this.logger.log('info', 'Error msg received',
-                            {'host': connection.toNode.key, error: errorResult.value.msg()});
+                            {'host': connection.toNode.key, error: errorResult.value.msg().toString()});
                     }
                     break;
 
