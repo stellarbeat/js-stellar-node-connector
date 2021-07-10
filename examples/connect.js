@@ -30,7 +30,7 @@ function connect() {
     } else {
         port = parseInt(port);
     }
-    getNodes().forEach(node =>
+    getNodes().filter(node => node.isValidating).forEach(node =>
         {
             connectionManager.connect(
                 new PeerNode(node.ip, node.port)

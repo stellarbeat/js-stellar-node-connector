@@ -132,20 +132,5 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
         return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
     }
 
-    public getMac(stellarMessageXDR: Buffer, sequence: Buffer, macKey: Buffer) {
-        return crypto.createHmac('SHA256', macKey).update(
-            Buffer.concat([
-                sequence,
-                stellarMessageXDR
-            ])
-        ).digest();
-    }
 
-    public verifyMac(mac: Buffer, receivingMacKey: Buffer, data: Buffer) {
-        let calculatedMac = crypto.createHmac('SHA256', receivingMacKey).update(
-           data
-        ).digest();
-
-        return mac.equals(calculatedMac);
-    }
 }

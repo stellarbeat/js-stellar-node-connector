@@ -24,6 +24,7 @@ import StellarMessage = xdr.StellarMessage;
 import {err, ok, Result} from "neverthrow";
 import AuthenticatedMessage = xdr.AuthenticatedMessage;
 import {ConnectionAuthentication} from "./connection-authentication";
+import {verifyHmac} from "./crypto";
 
 type nodeKey = string;
 
@@ -336,7 +337,7 @@ export class ConnectionManager {
             let messageType = result.value.messageTypeXDR.readInt32BE(0);
             if(messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value){
                 connection.increaseRemoteSequenceByOne();
-                let verified = connection.connectionAuthentication.verifyMac(result.value.macXDR, connection.receivingMacKey!, data);
+                let verified = verifyHmac(result.value.macXDR, connection.receivingMacKey!, data);
                 if(!verified){
                     this.logger.log('debug', 'Drop msg with invalid mac',
                         {
