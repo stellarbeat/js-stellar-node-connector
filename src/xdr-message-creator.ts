@@ -27,19 +27,25 @@ export default {
     },
 
     createHelloMessage: function (connection: Connection,
-                                  stellarNetworkId: Buffer): Result<Hello, Error> {
+                                  stellarNetworkId: Buffer,
+                                  ledgerVersion: number,
+                                  overlayVersion: number,
+                                  overlayMinVersion: number,
+                                  versionStr: string,
+                                  listeningPort: number
+    ): Result<Hello, Error> {
         try {
             let certResult = this.createAuthCert(connection.connectionAuthentication);
             if(certResult.isErr())
                 return err(certResult.error);
 
-            let hello = new StellarBase.xdr.Hello({ //todo: hardcoded data
-                ledgerVersion: 17,
-                overlayVersion: 17,
-                overlayMinVersion: 16,
+            let hello = new StellarBase.xdr.Hello({
+                ledgerVersion: ledgerVersion,
+                overlayVersion: overlayVersion,
+                overlayMinVersion: overlayMinVersion,
                 networkId: stellarNetworkId,
-                versionStr: 'v15.0.0',
-                listeningPort: 11625,
+                versionStr: versionStr,
+                listeningPort: listeningPort,
                 peerId: connection.keyPair.xdrPublicKey(),
                 cert: certResult.value,
                 nonce: connection.localNonce

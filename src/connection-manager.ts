@@ -26,6 +26,16 @@ import {ConnectionAuthentication} from "./connection-authentication";
 import {verifyHmac} from "./crypto";
 
 type nodeKey = string;
+export type Config = {
+    logLevel: string,
+    ledgerVersion: number,
+    overlayVersion: number,
+    overlayMinVersion: number,
+    versionString: string,
+    listeningPort: number,
+    socketTimeout: number,
+    privateKey?: string
+}
 
 export class ConnectionManager {
     _onNodeConnectedCallback: (node: PeerNode) => void;
@@ -44,6 +54,7 @@ export class ConnectionManager {
     protected pool: WorkerPool;
     protected processedEnvelopes = new LRUCache(5000);
     protected connectionAuthication: ConnectionAuthentication;
+    protected config: Config;
 
     constructor(
         usePublicNetwork: boolean = true,
@@ -55,6 +66,8 @@ export class ConnectionManager {
         onNodeDisconnectedCallback: (node: PeerNode) => void,
         logger: Logger
     ) {
+        this.config = this.initConfig();
+
         if (!logger) {
             this.initializeDefaultLogger();
         } else {
@@ -66,10 +79,9 @@ export class ConnectionManager {
         this._onQuorumSetReceivedCallback = onQuorumSetReceivedCallback;
         this._onNodeDisconnectedCallback = onNodeDisconnectedCallback;
         this._onSCPStatementReceivedCallback = onSCPStatementReceivedCallback;
-        let privateKey = process.env.CONNECTION_PRIVATE_KEY;
-        if (privateKey) {
+        if (this.config.privateKey) {
             try {
-                this.keyPair = Keypair.fromSecret(privateKey);
+                this.keyPair = Keypair.fromSecret(this.config.privateKey);
             } catch (error) {
                 throw new Error("Invalid private key");
             }
@@ -98,13 +110,44 @@ export class ConnectionManager {
         this.pool = pool(__dirname + '/worker/stellar-message-xdr-handler.js');
     }
 
+    initConfig(): Config {
+        let socketTimeout = this.getNumberFromEnv('SOCKET_TIMEOUT', 5000);
+        let ledgerVersion = this.getNumberFromEnv('LEDGER_VERSION', 17);
+        let overlayVersion = this.getNumberFromEnv('OVERLAY_VERSION', 17);
+        let overlayMinVersion = this.getNumberFromEnv('OVERLAY_MIN_VERSION', 16);
+        let versionString = process.env['VERSION_STRING'] ? process.env['VERSION_STRING'] : 'sb';
+        let listeningPort = this.getNumberFromEnv('LISTENING_PORT', 11625);
+        let logLevel = process.env['LOG_LEVEL'] ? process.env['LOG_LEVEL'] : 'debug';
+        let privateKey = process.env['PRIVATE_KEY'] ? process.env['LOG_LEVEL'] : undefined;
+
+        return {
+            socketTimeout: socketTimeout,
+            ledgerVersion: ledgerVersion,
+            overlayMinVersion: overlayMinVersion,
+            overlayVersion: overlayVersion,
+            listeningPort: listeningPort,
+            logLevel: logLevel,
+            versionString: versionString,
+            privateKey: privateKey
+        }
+    }
+
+    getNumberFromEnv(key: string, defaultValue: number){
+        let value = defaultValue;
+        let stringy = process.env[key];
+        if (stringy && !isNaN(parseInt(stringy))) {
+            value = parseInt(stringy);
+        }
+        return value;
+    }
+
     setLogger(logger: any) {
         this.logger = logger;
     }
 
     protected initializeDefaultLogger() {
         this.logger = winston.createLogger({
-            level: process.env.LOG_LEVEL || 'info',
+            level: this.config.logLevel,
             transports: [
                 new winston.transports.Console({
                     silent: false
@@ -118,12 +161,7 @@ export class ConnectionManager {
 
     connect(toNode: PeerNode) {
         let socket = new net.Socket();
-        let socketTimeoutString = process.env.SOCKET_TIMEOUT;
-        if (socketTimeoutString && !isNaN(parseInt(socketTimeoutString))) {
-            socket.setTimeout(parseInt(socketTimeoutString));
-        } else {
-            socket.setTimeout(2500);
-        }
+        socket.setTimeout(this.config.socketTimeout);
 
         let connection = new Connection(this.keyPair, toNode, socket, this.connectionAuthication);
 
@@ -252,7 +290,15 @@ export class ConnectionManager {
     protected initiateHandShake(connection: Connection) {
         this.logger.log('debug', "send HELLO",
             {'host': connection.toNode.key});
-        let helloResult = xdrMessageCreator.createHelloMessage(connection, this.networkBuffer);
+        let helloResult = xdrMessageCreator.createHelloMessage(
+            connection,
+            this.networkBuffer,
+            this.config.ledgerVersion,
+            this.config.overlayVersion,
+            this.config.overlayMinVersion,
+            this.config.versionString,
+            this.config.listeningPort
+        );
         if (helloResult.isErr()) {
             this.logger.log('error', "error creating hello msg",
                 {'host': connection.toNode.key, error: helloResult.error});
