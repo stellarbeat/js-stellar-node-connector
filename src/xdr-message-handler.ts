@@ -1,7 +1,6 @@
 /*
 Fast way to determine message type without parsing the whole xdr through the StellarBase xdr class todo: improve doc
  */
-import {crypto_sign_verify_detached, crypto_auth_verify} from "sodium-native";
 import {hash, StrKey, xdr} from "stellar-base";
 import {ok, err, Result} from 'neverthrow'
 import * as jsXdr from "js-xdr";
@@ -12,13 +11,16 @@ import {PeerNode} from "./peer-node";
 import {QuorumSet} from "@stellarbeat/js-stellar-domain";
 import Hello = xdr.Hello;
 import {Connection} from "./connection";
+import {verifySignature} from "./crypto";
 
-export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<{
+export interface AuthenticatedMessageV0{
     sequenceNumberXDR: Buffer,
     messageTypeXDR: Buffer,
     stellarMessageXDR: Buffer,
     macXDR: Buffer
-}, Error> {
+}
+
+export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<AuthenticatedMessageV0, Error> {
     let messageVersionXDR = messageXDR.slice(0, 4);
     if (messageVersionXDR.readInt32BE(0) !== 0) {//we only support v0
         return err(new Error("Unsupported message version"));
@@ -37,10 +39,6 @@ export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<{
         stellarMessageXDR: stellarMessageXDR,
         macXDR: macXDR
     })
-}
-
-export function verifySignature(publicKey: Buffer, signature: Buffer, message: Buffer): boolean {
-    return crypto_sign_verify_detached(signature, message, publicKey);
 }
 
 export function handleErrorMessageXDR(errorMessageXDR: Buffer): Result<xdr.Error, Error>{

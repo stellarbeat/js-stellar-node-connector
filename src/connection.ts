@@ -7,7 +7,7 @@ import {Keypair, xdr} from "stellar-base";
 import {err, ok, Result} from "neverthrow";
 import {Socket} from 'net';
 import {ConnectionAuthentication} from "./connection-authentication";
-import {createHmac} from "./crypto";
+import {createSHA256Hmac} from "./crypto";
 
 //todo connectionState
 
@@ -107,7 +107,10 @@ export class Connection { //todo: introduce 'fromNode'
         if (this.remotePublicKeyECDH === undefined)
             mac = Buffer.alloc(32);
         else
-            mac = createHmac(message.toXDR(), this.localSequence, this.sendingMacKey!);
+            mac = createSHA256Hmac(Buffer.concat([
+                this.localSequence,
+                message.toXDR()
+            ]), this.sendingMacKey!);
 
         return new StellarBase.xdr.HmacSha256Mac({
             mac: mac

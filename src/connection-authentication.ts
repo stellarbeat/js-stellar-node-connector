@@ -4,8 +4,8 @@ import * as crypto from "crypto";
 import EnvelopeType = xdr.EnvelopeType;
 import Uint64 = xdr.Uint64;
 import UnsignedHyper = xdr.UnsignedHyper;
-import {verifySignature} from "./xdr-message-handler";
 import BigNumber from "bignumber.js";
+import {createSHA256Hmac, verifySignature} from "./crypto";
 
 type Curve25519SecretBuffer = Buffer;
 type Curve25519PublicBuffer = Buffer;
@@ -116,7 +116,7 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
 
         let sharedKey = this.getSharedKey(remotePublicKeyECDH, weCalledRemote);
 
-        return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
+        return createSHA256Hmac(buf, sharedKey);
     }
 
     public getReceivingMacKey(localNonce: Buffer, remoteNonce: Buffer, remotePublicKeyECDH: Curve25519PublicBuffer, weCalledRemote: boolean = true) {
@@ -129,7 +129,7 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
 
         let sharedKey = this.getSharedKey(remotePublicKeyECDH);
 
-        return crypto.createHmac('SHA256', sharedKey).update(buf).digest();
+        return createSHA256Hmac(buf, sharedKey);
     }
 
 

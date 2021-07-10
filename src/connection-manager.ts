@@ -317,27 +317,27 @@ export class ConnectionManager {
         }
 
         try {
-            let stellarMessageXDR = result.value.stellarMessageXDR;
+            let authenticatedMessageV0 = result.value;
 
-            if(!connection.remoteSequence.equals(result.value.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
+            if(!connection.remoteSequence.equals(authenticatedMessageV0.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
                 this.logger.log('debug', 'Drop msg with wrong seq number',
                     {
                         'host': connection.toNode.key, 'expected': connection.remoteSequence.toString(),
-                        'received': xdr.Uint64.fromXDR(result.value.sequenceNumberXDR).toString()
+                        'received': xdr.Uint64.fromXDR(authenticatedMessageV0.sequenceNumberXDR).toString()
                     });
                 return;
             }
 
            let data = Buffer.concat([
-                result.value.sequenceNumberXDR,
-                result.value.messageTypeXDR,
-                result.value.stellarMessageXDR
+                authenticatedMessageV0.sequenceNumberXDR,
+                authenticatedMessageV0.messageTypeXDR,
+                authenticatedMessageV0.stellarMessageXDR
             ]);
 
-            let messageType = result.value.messageTypeXDR.readInt32BE(0);
+            let messageType = authenticatedMessageV0.messageTypeXDR.readInt32BE(0);
             if(messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value){
                 connection.increaseRemoteSequenceByOne();
-                let verified = verifyHmac(result.value.macXDR, connection.receivingMacKey!, data);
+                let verified = verifyHmac(authenticatedMessageV0.macXDR, connection.receivingMacKey!, data);
                 if(!verified){
                     this.logger.log('debug', 'Drop msg with invalid mac',
                         {
@@ -352,7 +352,7 @@ export class ConnectionManager {
                     this.logger.log('debug', 'Rcv hello msg',
                         {'host': connection.toNode.key});
                     //we parse the xdr in the main thread, because this is a priority message
-                    let helloResult = handleHelloMessageXDR(stellarMessageXDR, connection);
+                    let helloResult = handleHelloMessageXDR(authenticatedMessageV0.stellarMessageXDR, connection);
                     if(helloResult.isOk())
                         this.continueHandshake(connection);
                     else {
@@ -371,7 +371,7 @@ export class ConnectionManager {
                 case MessageType.scpQuorumset().value:
                     this.logger.log('debug', 'rcv scpQuorumSet msg',
                         {'host': connection.toNode.key});
-                    let quorumSetResult = handleSCPQuorumSetMessageXDR(stellarMessageXDR);
+                    let quorumSetResult = handleSCPQuorumSetMessageXDR(authenticatedMessageV0.stellarMessageXDR);
                     if (quorumSetResult.isErr()) {
                         this.logger.log('debug', 'Error parsing qset msg',
                             {'host': connection.toNode.key, 'error': quorumSetResult.error.message});
@@ -383,7 +383,7 @@ export class ConnectionManager {
                     break;
 
                 case MessageType.errorMsg().value:
-                    let errorResult = handleErrorMessageXDR(stellarMessageXDR);
+                    let errorResult = handleErrorMessageXDR(authenticatedMessageV0.stellarMessageXDR);
                     if(errorResult.isErr()){
                         this.logger.log('debug', 'Error parsing error msg',
                             {'host': connection.toNode.key}, errorResult.error);
@@ -404,7 +404,7 @@ export class ConnectionManager {
                         {'host': connection.toNode.key});
                     this.pool.proxy()
                         .then(worker => {
-                            return worker.handlePeersMessageXDR(stellarMessageXDR, this.networkBuffer);
+                            return worker.handlePeersMessageXDR(authenticatedMessageV0.stellarMessageXDR, this.networkBuffer);
                         })
                         .then((peers) => {
                                 //@ts-ignore
@@ -417,13 +417,13 @@ export class ConnectionManager {
                     break;
                 case MessageType.scpMessage().value:
                     this.logger.debug('rcv scp msg', {'host': connection.toNode.key});
-                    if (this.processedEnvelopes.has(stellarMessageXDR.toString('base64'))) {
+                    if (this.processedEnvelopes.has(authenticatedMessageV0.stellarMessageXDR.toString('base64'))) {
                         return;
                     }
-                    this.processedEnvelopes.set(stellarMessageXDR.toString('base64'), 1);
+                    this.processedEnvelopes.set(authenticatedMessageV0.stellarMessageXDR.toString('base64'), 1);
                     this.pool.proxy()
                         .then(worker => {
-                            return worker.handleSCPMessageXDR(stellarMessageXDR, this.networkBuffer)
+                            return worker.handleSCPMessageXDR(authenticatedMessageV0.stellarMessageXDR, this.networkBuffer)
                         })
                         .then((message) => {
                                 //@ts-ignore
