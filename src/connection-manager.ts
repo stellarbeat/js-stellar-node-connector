@@ -267,7 +267,7 @@ export class ConnectionManager {
         );
 
         if (result.isErr())
-            this.logger.log('debug', 'send hello msg failed',
+            this.logger.log('error', 'send hello msg failed',
                 {'host': connection.toNode.key, error: result.error.message});
     }
 
@@ -318,7 +318,7 @@ export class ConnectionManager {
         try {
             let stellarMessageXDR = result.value.stellarMessageXDR;
 
-            if(!connection.remoteSequence.toXDR().equals(result.value.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
+            if(!connection.remoteSequence.equals(result.value.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
                 this.logger.log('debug', 'Drop msg with wrong seq number',
                     {
                         'host': connection.toNode.key, 'expected': connection.remoteSequence.toString(),
@@ -327,16 +327,16 @@ export class ConnectionManager {
                 return;
             }
 
-            let data = Buffer.concat([
+           let data = Buffer.concat([
                 result.value.sequenceNumberXDR,
                 result.value.messageTypeXDR,
                 result.value.stellarMessageXDR
             ]);
 
-            let messageType = xdr.Int32.fromXDR(result.value.messageTypeXDR);
+            let messageType = result.value.messageTypeXDR.readInt32BE(0);
             if(messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value){
                 connection.increaseRemoteSequenceByOne();
-                let verified =  connection.connectionAuthentication.verifyMac(result.value.macXDR, connection.receivingMacKey!, data);
+                let verified = connection.connectionAuthentication.verifyMac(result.value.macXDR, connection.receivingMacKey!, data);
                 if(!verified){
                     this.logger.log('debug', 'Drop msg with invalid mac',
                         {
@@ -496,7 +496,12 @@ export class ConnectionManager {
         if (!socket.writable)
             return err(new Error("Socket not writable"));
 
-        if (!socket.write(xdrBufferConverter.getXdrBufferFromMessage(message))) //todo: implement callback to notify when command was sent successfully.
+        let bufferResult = xdrBufferConverter.getXdrBufferFromMessage(message);
+        if(bufferResult.isErr()){
+            return err(bufferResult.error);
+        }
+
+        if (!socket.write(bufferResult.value)) //todo: implement callback to notify when command was sent successfully.
             return err(new Error("Could not write to socket"));
 
         return ok(undefined);

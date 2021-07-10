@@ -1,5 +1,6 @@
 import {xdr} from "stellar-base";
 import AuthenticatedMessage = xdr.AuthenticatedMessage;
+import {err, ok, Result} from "neverthrow";
 
 export default {
     getMessageLengthFromXDRBuffer: function (buffer:Buffer) {
@@ -24,11 +25,16 @@ export default {
         return [buffer.slice(4, messageLength + 4), buffer.slice(4 + messageLength)];
     },
 
-    getXdrBufferFromMessage: function (message:AuthenticatedMessage) {
-        let lengthBuffer = Buffer.allocUnsafe(4);
-        let xdrMessage =  message.toXDR();
-        lengthBuffer.writeInt32BE(xdrMessage.length, 0);
+    getXdrBufferFromMessage: function (message:AuthenticatedMessage): Result<Buffer, Error> {
+        try {
+            let lengthBuffer = Buffer.allocUnsafe(4);
+            let xdrMessage =  message.toXDR();
+            lengthBuffer.writeInt32BE(xdrMessage.length, 0);
 
-        return Buffer.concat([lengthBuffer, xdrMessage]);
+            return ok(Buffer.concat([lengthBuffer, xdrMessage]));
+        } catch (error){
+            return err(error);
+        }
+
     },
 };

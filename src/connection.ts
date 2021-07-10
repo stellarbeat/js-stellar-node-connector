@@ -16,8 +16,8 @@ export class Connection { //todo: introduce 'fromNode'
     _remotePublicKeyECDH?: Buffer;
     _localNonce: Buffer;
     _remoteNonce?: Buffer;
-    _localSequence: xdr.Uint64;
-    _remoteSequence: xdr.Uint64;
+    _localSequence: Buffer;
+    _remoteSequence: Buffer;
     handshakeCompleted: boolean = false;
     socket: Socket;
     connectionAuthentication: ConnectionAuthentication;
@@ -29,8 +29,8 @@ export class Connection { //todo: introduce 'fromNode'
         this.connectionAuthentication = connectionAuth;
         this._keyPair = keyPair;
         this._localNonce = StellarBase.hash(BigNumber.random().toString());
-        this._localSequence = StellarBase.xdr.Uint64.fromString("0");
-        this._remoteSequence = StellarBase.xdr.Uint64.fromString("0");
+        this._localSequence = Buffer.alloc(8);
+        this._remoteSequence = Buffer.alloc(8);
         this._toNode = toNode;
     }
 
@@ -50,7 +50,7 @@ export class Connection { //todo: introduce 'fromNode'
         this._localNonce = value;
     }
 
-    get localSequence(): any /*StellarBase.xdr.Uint64*/ {
+    get localSequence(): Buffer {
         return this._localSequence;
     }
 
@@ -71,21 +71,23 @@ export class Connection { //todo: introduce 'fromNode'
     }
 
     increaseLocalSequenceByOne() {
-        //@ts-ignore
-        let seq = new BigNumber(this._localSequence).plus(1);
-        this._localSequence = StellarBase.xdr.Uint64.fromString(seq.toString());
+        this._localSequence = this.increaseBufferByOne(this.localSequence);
     }
 
+    protected increaseBufferByOne(buf: Buffer){
+        for (var i = buf.length - 1; i >= 0; i--) {
+            if (buf[i]++ !== 255) break;
+        }
+        return buf;
+    }
     increaseRemoteSequenceByOne() {
-        //@ts-ignore
-        let seq = new BigNumber(this._remoteSequence).plus(1);
-        this._remoteSequence = StellarBase.xdr.Uint64.fromString(seq.toString());
+        this._remoteSequence = this.increaseBufferByOne(this.localSequence);
     }
 
     authenticateMessage(message: xdr.StellarMessage): Result<xdr.AuthenticatedMessage, Error> {
         try {
             let xdrAuthenticatedMessageV1 = new StellarBase.xdr.AuthenticatedMessageV0({
-                sequence: this.localSequence,
+                sequence: xdr.Uint64.fromXDR(this.localSequence),
                 message: message,
                 mac: this.getMacForAuthenticatedMessage(message)
             });
@@ -104,7 +106,7 @@ export class Connection { //todo: introduce 'fromNode'
         if (this.remotePublicKeyECDH === undefined)
             mac = Buffer.alloc(32);
         else
-            mac = this.connectionAuthentication.getMac(message.toXDR(), this.localSequence.toXDR(), this.sendingMacKey!);
+            mac = this.connectionAuthentication.getMac(message.toXDR(), this.localSequence, this.sendingMacKey!);
 
         return new StellarBase.xdr.HmacSha256Mac({
             mac: mac
