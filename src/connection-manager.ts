@@ -14,6 +14,7 @@ import {Logger} from "winston";
 import {pool, WorkerPool} from 'workerpool';
 import MessageType = xdr.MessageType;
 import {
+    extractSignatureFromSCPEnvelope,
     handleErrorMessageXDR,
     handleHelloMessageXDR,
     handleSCPQuorumSetMessageXDR,
@@ -343,6 +344,7 @@ export class ConnectionManager {
                 ]);
                 connection.increaseRemoteSequenceByOne();
 
+                //Todo: move verifymac to the msg handlers. for example we are veryfing macs of scp envelopes that are discarded because we already processed them.
                 let verified = verifyHmac(authenticatedMessageV0.macXDR, connection.receivingMacKey!, data);
                 if(!verified){
                     this.logger.log('error', 'Invalid hmac, disconnecting',
@@ -424,10 +426,11 @@ export class ConnectionManager {
                     break;
                 case MessageType.scpMessage().value:
                     this.logger.debug('rcv scp msg', {'host': connection.toNode.key});
-                    if (this.processedEnvelopes.has(authenticatedMessageV0.stellarMessageXDR.toString('base64'))) {
+                    let signature = extractSignatureFromSCPEnvelope(authenticatedMessageV0.stellarMessageXDR).toString('base64');
+                    if (this.processedEnvelopes.has(signature)) {
                         return;
                     }
-                    this.processedEnvelopes.set(authenticatedMessageV0.stellarMessageXDR.toString('base64'), 1);
+                    this.processedEnvelopes.set(signature, 1);
                     this.pool.proxy()
                         .then(worker => {
                             return worker.handleSCPMessageXDR(authenticatedMessageV0.stellarMessageXDR, this.networkBuffer)

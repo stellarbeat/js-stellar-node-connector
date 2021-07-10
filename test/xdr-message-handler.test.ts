@@ -1,6 +1,11 @@
 import {hash, Networks, xdr} from "stellar-base";
 import MessageType = xdr.MessageType;
-import {handlePeersMessageXDR, handleSCPMessageXDR, parseAuthenticatedMessageXDR} from "../src/xdr-message-handler";
+import {
+    extractSignatureFromSCPEnvelope,
+    handlePeersMessageXDR,
+    handleSCPMessageXDR,
+    parseAuthenticatedMessageXDR
+} from "../src/xdr-message-handler";
 import {ScpNomination, ScpStatementConfirm, ScpStatementExternalize, ScpStatementPrepare} from "../src";
 const StellarBase = require('stellar-base');
 
@@ -14,8 +19,13 @@ test('parseAuthenticatedMessageXDR', () => {
         expect(messageType).toEqual(MessageType.scpMessage());
         expect(StellarBase.xdr.ScpEnvelope.fromXDR(result.value.stellarMessageXDR)).toBeDefined();
     }
-
 })
+
+test('extractSignature', () => {
+    let xdr = Buffer.from('AAAAAAFdGFUq2t7rTo0wWu9k/6rxa0T+pf6CHmBj2vO56O1XAAAAAAIpQW4AAAADNBoKrinq0sel1/AaGeXJf10xQ/vSvgOb3xN3pi8qeGgAAAABAAAAmDfNPDC76wNcNIfI9Kh/sIZzyLSqM+/2Q7ynrnWNb75gAAAAAGDlyDEAAAAAAAAAAQAAAACMHUtKNgEX1QDfz4zesWaxmhLg9Le806GgxemeQfaXmQAAAEAO4K/dJZruXyv6ypWMXhk9fy8W5Ujq8znMPy8EncZQepTRzYvqyUU4PFamzp99lly+yDt4nqgov4VZvYVVDXsPAAAAAAAAAEBpJ3HZ9TunMXViASRj5RrWlNSjA6hZZeClRGo+SYHRwq8STmObzvUvOKfgF8VTfvyqZ/LCM9FPD+iQoG2gHssB', 'base64');
+
+    expect(extractSignatureFromSCPEnvelope(xdr).toString('base64')).toEqual('aSdx2fU7pzF1YgEkY+Ua1pTUowOoWWXgpURqPkmB0cKvEk5jm871Lzin4BfFU378qmfywjPRTw/okKBtoB7LAQ==');
+});
 
 test('handlePeersMessageXDR', () => {
     let xdr = Buffer.from('AAAAMgAAAADZXIJCAAAtaQAAAAAAAAAAdMqk9gAALWkAAAAAAAAAABLoX84AAC1pAAAAAAAAAAA07TXUAAAtaQAAAAAAAAAADfTe3wAALWkAAAAAAAAAAChyQj8AAC1pAAAAAAAAAAAj5bxyAAAtaQAAAAAAAAAAjRQh9AAALWkAAAAAAAAAALI+ThsAAC1pAAAAAAAAAAAzoQ1vAAAtaQAAAAAAAAAAreG3mQAALWkAAAAAAAAAAFKlFpsAAC1pAAAAAAAAAAAjvSpoAAAtaQAAAAAAAAAApePZtgAALWkAAAAAAAAAACJQEJYAAC1pAAAAAAAAAACLO+qRAAAtaQAAAAAAAAAAsj9d9gAALWkAAAAAAAAAACJIkPIAAC1pAAAAAAAAAAC5RaYLAAAtaQAAAAAAAAAADXKrQgAALWkAAAAAAAAAABKdp4kAAC1pAAAAAAAAAAC8peacAAAtzQAAAAAAAAAAaM+YYQAALWkAAAAAAAAAAA3kGQEAAC1pAAAAAAAAAAAzTfe3AAAtaQAAAAAAAAAADeZl7QAALWkAAAAAAAAAAIe1iDEAAC1pAAAAAAAAAAAvW/G5AAAtaQAAAAAAAAAAdMqGggAALWkAAAAAAAAAAAMYiWwAAC1pAAAAAAAAAAAStbExAAAtaQAAAAAAAAAAA3iRrAAALWkAAAAAAAAAADap+/cAAC1pAAAAAAAAAABrFJ/oAAAtaQAAAAAAAAAAFGYoYQAALWkAAAAAAAAAAJxD3O4AAC1pAAAAAAAAAAA2u4lTAAAtaQAAAAAAAAAAdMqFcwAALWkAAAAAAAAAADb6Hx4AAC1pAAAAAAAAAAAj9xcxAAAtaQAAAAAAAAAATWTtbgAALWkAAAAAAAAAAFGnRvwAAC1pAAAAAAAAAAAzTXctAAAtaQAAAAAAAAAAIoyK7AAALWkAAAAAAAAAAANwGy8AAC1pAAAAAAAAAACAxwf7AAAtaQAAAAAAAAAANk5NhAAAE4kAAAAAAAAAAAMaWwcAAC1pAAAAAAAAAAAod5esAAAtaQAAAAAAAAAAA+7tbgAALWkAAAAA', 'base64');

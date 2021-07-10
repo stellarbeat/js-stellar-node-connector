@@ -41,6 +41,10 @@ export function parseAuthenticatedMessageXDR(messageXDR: Buffer): Result<Authent
     })
 }
 
+export function extractSignatureFromSCPEnvelope(scpEnvelopeXDR: Buffer){
+    return scpEnvelopeXDR.slice(scpEnvelopeXDR.length - 64);
+}
+
 export function handleErrorMessageXDR(errorMessageXDR: Buffer): Result<xdr.Error, Error>{
     try {
         let error = xdr.Error.fromXDR(errorMessageXDR);
