@@ -22,7 +22,6 @@ import {
 import * as LRUCache from "lru-cache";
 import StellarMessage = xdr.StellarMessage;
 import {err, ok, Result} from "neverthrow";
-import AuthenticatedMessage = xdr.AuthenticatedMessage;
 import {ConnectionAuthentication} from "./connection-authentication";
 import {verifyHmac} from "./crypto";
 
@@ -319,30 +318,32 @@ export class ConnectionManager {
         try {
             let authenticatedMessageV0 = result.value;
 
-            if(!connection.remoteSequence.equals(authenticatedMessageV0.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
-                this.logger.log('debug', 'Drop msg with wrong seq number',
-                    {
-                        'host': connection.toNode.key, 'expected': connection.remoteSequence.toString(),
-                        'received': xdr.Uint64.fromXDR(authenticatedMessageV0.sequenceNumberXDR).toString()
-                    });
-                return;
-            }
-
-           let data = Buffer.concat([
-                authenticatedMessageV0.sequenceNumberXDR,
-                authenticatedMessageV0.messageTypeXDR,
-                authenticatedMessageV0.stellarMessageXDR
-            ]);
-
             let messageType = authenticatedMessageV0.messageTypeXDR.readInt32BE(0);
             if(messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value){
+                if(!connection.remoteSequence.equals(authenticatedMessageV0.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
+                    this.logger.error( 'wrong seq number, disconnecting',
+                        {
+                            'host': connection.toNode.key, 'expected': xdr.Uint64.fromXDR(connection.remoteSequence).toString(),
+                            'received': xdr.Uint64.fromXDR(authenticatedMessageV0.sequenceNumberXDR).toString()
+                        });
+                    connection.socket.destroy();
+                    return;
+                }
+
+                let data = Buffer.concat([
+                    authenticatedMessageV0.sequenceNumberXDR,
+                    authenticatedMessageV0.messageTypeXDR,
+                    authenticatedMessageV0.stellarMessageXDR
+                ]);
                 connection.increaseRemoteSequenceByOne();
+
                 let verified = verifyHmac(authenticatedMessageV0.macXDR, connection.receivingMacKey!, data);
                 if(!verified){
-                    this.logger.log('debug', 'Drop msg with invalid mac',
+                    this.logger.log('error', 'Invalid hmac, disconnecting',
                         {
                             'host': connection.toNode.key
                         });
+                    connection.socket.destroy();
                     return;
                 }
             }
@@ -493,7 +494,7 @@ export class ConnectionManager {
         return ok(result.value);
     }
 
-    protected writeMessageToSocket(socket: net.Socket, message: AuthenticatedMessage): Result<void, Error> {
+    protected writeMessageToSocket(socket: net.Socket, message: xdr.AuthenticatedMessage): Result<void, Error> {
         if (!socket.writable)
             return err(new Error("Socket not writable"));
 

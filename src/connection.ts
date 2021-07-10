@@ -76,13 +76,13 @@ export class Connection { //todo: introduce 'fromNode'
     }
 
     protected increaseBufferByOne(buf: Buffer){
-        for (var i = buf.length - 1; i >= 0; i--) {
+        for (let i = buf.length - 1; i >= 0; i--) {
             if (buf[i]++ !== 255) break;
         }
         return buf;
     }
     increaseRemoteSequenceByOne() {
-        this._remoteSequence = this.increaseBufferByOne(this.localSequence);
+        this._remoteSequence = this.increaseBufferByOne(this.remoteSequence);
     }
 
     authenticateMessage(message: xdr.StellarMessage): Result<xdr.AuthenticatedMessage, Error> {
