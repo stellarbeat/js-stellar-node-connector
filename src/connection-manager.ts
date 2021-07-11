@@ -303,6 +303,8 @@ export class ConnectionManager {
         let xdrMessage: Buffer | null = null;
         try {
             let messageLength = xdrBufferConverter.getMessageLengthFromXDRBuffer(buffer);
+            //TODO: when a lot of data is sent, this while can block the event loop because every message is processed synch. Use a stream transformer
+            //todo: highWaterMark checking if internal buffer is filling up, and our node is thus lagging behind
             while (xdrBufferConverter.xdrBufferContainsCompleteMessage(buffer, messageLength)) {
                 [xdrMessage, buffer] = xdrBufferConverter.getMessageFromXdrBuffer(buffer, messageLength);
                 this.handleAuthenticatedMessageXDR(xdrMessage, connection);

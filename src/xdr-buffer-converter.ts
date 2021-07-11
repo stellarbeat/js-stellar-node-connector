@@ -4,16 +4,11 @@ import {err, ok, Result} from "neverthrow";
 
 export default {
     getMessageLengthFromXDRBuffer: function (buffer:Buffer) {
-        let length = buffer[0]; //first byte
-        length &= 0x7f;
-        length <<= 8;
-        length |= buffer[1];
-        length <<= 8;
-        length |= buffer[2];
-        length <<= 8;
-        length |= buffer[3];
+        if(buffer.length < 4)
+            return 0;
 
-        return length;
+        buffer[0] = buffer[0] &= 0x7f; //clear xdr continuation bit
+        return buffer.readUInt32BE(0)
     },
 
     xdrBufferContainsCompleteMessage: function(buffer:Buffer, messageLength:number){
@@ -27,9 +22,9 @@ export default {
 
     getXdrBufferFromMessage: function (message:AuthenticatedMessage): Result<Buffer, Error> {
         try {
-            let lengthBuffer = Buffer.allocUnsafe(4);
+            let lengthBuffer = Buffer.alloc(4);
             let xdrMessage =  message.toXDR();
-            lengthBuffer.writeInt32BE(xdrMessage.length, 0);
+            lengthBuffer.writeUInt32BE(xdrMessage.length, 0);
 
             return ok(Buffer.concat([lengthBuffer, xdrMessage]));
         } catch (error){
