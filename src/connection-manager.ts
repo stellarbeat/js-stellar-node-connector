@@ -2,30 +2,23 @@ import {FastSigning, hash, Keypair, Networks, xdr} from "stellar-base";
 
 import {QuorumSet} from "@stellarbeat/js-stellar-domain";
 import * as net from 'net';
-import xdrBufferConverter from './xdr-buffer-converter';
-import xdrMessageCreator from "./xdr-message-creator";
-import {Connection} from "./connection";
+import xdrMessageCreator from "./connection/handshake-message-creator";
+import Connection from "./connection/connection";
 import * as winston from "winston";
+import * as pino from "pino";
 
 require('dotenv').config();
-import {SCPStatement} from './scp-statement';
 import {PeerNode} from "./peer-node";
 import {Logger} from "winston";
 import {pool, WorkerPool} from 'workerpool';
 import MessageType = xdr.MessageType;
-import {
-    extractSignatureFromSCPEnvelope,
-    handleErrorMessageXDR,
-    handleHelloMessageXDR,
-    handleSCPQuorumSetMessageXDR,
-    parseAuthenticatedMessageXDR
-} from "./xdr-message-handler";
 import * as LRUCache from "lru-cache";
 import StellarMessage = xdr.StellarMessage;
 import {err, ok, Result} from "neverthrow";
-import {ConnectionAuthentication} from "./connection-authentication";
-import {verifyHmac} from "./crypto";
+import {ConnectionAuthentication} from "./connection/connection-authentication";
+import {verifyHmac} from "./crypto-helper";
 import {Config, getConfig} from "./config";
+import {getIpFromPeerAddress, getQuorumSetFromMessage, verifyStatementXDRSignature} from "./stellar-message-service";
 
 type nodeKey = string;
 
@@ -35,14 +28,14 @@ export class ConnectionManager {
     _onLoadTooHighCallback: (node: PeerNode) => void;
     _onQuorumSetReceivedCallback: (quorumSet: QuorumSet, node: PeerNode) => void;
     _onNodeDisconnectedCallback: (node: PeerNode) => void;
-    _onSCPStatementReceivedCallback: (SCPStatement: SCPStatement, node: PeerNode) => void;
+    _onSCPStatementReceivedCallback: (SCPStatement: xdr.ScpStatement, node: PeerNode) => void;
 
     protected logger!: Logger;
     protected dataBuffers: Map<string, Buffer> = new Map<string, Buffer>();
     protected network: string;
     protected activeConnections: Map<nodeKey, Connection> = new Map(); //a node is connected when handshake is completed
     protected keyPair: Keypair;
-    protected networkBuffer: Buffer;
+    protected networkIDBuffer: Buffer;
     protected pool: WorkerPool;
     protected processedEnvelopes = new LRUCache(5000);
     protected connectionAuthication: ConnectionAuthentication;
@@ -53,7 +46,7 @@ export class ConnectionManager {
         _onNodeConnectedCallback: (node: PeerNode) => void,
         onPeersReceivedCallback: (peers: Array<PeerNode>, node: PeerNode) => void,
         onLoadTooHighCallback: (node: PeerNode) => void,
-        onSCPStatementReceivedCallback: (SCPStatement: SCPStatement, node: PeerNode) => void,
+        onSCPStatementReceivedCallback: (SCPStatement: xdr.ScpStatement, node: PeerNode) => void,
         onQuorumSetReceivedCallback: (quorumSet: QuorumSet, node: PeerNode) => void,
         onNodeDisconnectedCallback: (node: PeerNode) => void,
         logger: Logger
@@ -90,16 +83,16 @@ export class ConnectionManager {
         }
 
         //@ts-ignore
-        this.networkBuffer = hash(this.network);
+        this.networkIDBuffer = hash(this.network);
 
 
         if (!FastSigning) {
-            this.logger.log('warning', 'FastSigning not enabled',
+            this.logger.debug('warning', 'FastSigning not enabled',
                 {'app': 'Connector'});
         }
 
-        this.connectionAuthication = new ConnectionAuthentication(this.keyPair, this.networkBuffer);
-        this.pool = pool(__dirname + '/worker/stellar-message-xdr-handler.js');
+        this.connectionAuthication = new ConnectionAuthentication(this.keyPair, this.networkIDBuffer);
+        this.pool = pool(__dirname + '/worker/crypto-worker.js');
     }
 
     setLogger(logger: any) {
@@ -107,6 +100,8 @@ export class ConnectionManager {
     }
 
     protected initializeDefaultLogger() {
+        this.logger = require('pino')();
+        return;//todo: winston is creating blocking issues
         this.logger = winston.createLogger({
             level: this.config.logLevel,
             transports: [
@@ -122,40 +117,39 @@ export class ConnectionManager {
 
     connect(toNode: PeerNode) {
         let socket = new net.Socket();
-        socket.setTimeout(this.config.socketTimeout);
 
-        let connection = new Connection(this.keyPair, toNode, socket, this.connectionAuthication);
+        let connection = new Connection(this.keyPair, toNode, socket, this.connectionAuthication, this.networkIDBuffer, this.config, this.logger);
 
-        socket
+        connection
             .on('connect', () => {
-                this.logger.log('debug', 'Socket connection established',
+                this.logger.info('Connected to Stellar Node',
                     {'host': connection.toNode.key});
-                this.initiateHandShake(connection);
+                this._onNodeConnectedCallback(connection.toNode);
             })
-            .on('data', (data) => {
-                this.logger.log('debug', 'Rcv data',
-                    {'host': connection.toNode.key});
-                this.handleData(data, connection);
+            .on('data', (data: StellarMessage) => {
+                this.handleStellarMessage(data, connection);
             })
             .on('error', (err: any) => {
-                this.logger.log('info', "Socket error: " + err.code,
+                this.logger.info( "Socket error: " + err.code,
                     {'host': connection.toNode.key});
             })
             .on('close', () => {
-                this.logger.log('info', "Connection closed",
+                this.logger.info( "Connection closed",
                     {'host': connection.toNode.key});
                 this.activeConnections.delete(connection.toNode.key);
                 this._onNodeDisconnectedCallback(connection.toNode);
             })
             .on('timeout', () => {
-                this.logger.log('info', "Connection timeout, closing",
+                this.logger.info( "Connection timeout, closing",
                     {'host': connection.toNode.key});
                 socket.destroy();
             });
 
-        this.logger.log('info', 'Connect',
+        this.logger.info( 'Connect',
             {'host': connection.toNode.key});
-        socket.connect(connection.toNode.port, connection.toNode.ip);
+
+        connection.connect();
+
         this.activeConnections.set(connection.toNode.key, connection);
     }
 
@@ -163,45 +157,24 @@ export class ConnectionManager {
         await this.pool.terminate();
     }
 
-    pause(node: PeerNode): Result<void, Error> {
-        let connection = this.activeConnections.get(node.key);
-        if (!connection)
-            return err(new Error("No active connection"));
-
-        connection.socket.pause();
-
-        return ok(undefined);
-    }
-
-    resume(node: PeerNode): Result<void, Error> {
-        let connection = this.activeConnections.get(node.key);
-        if (!connection)
-            return err(new Error("No active connection"));
-
-        connection.socket.resume();
-        return ok(undefined);
-
-    }
-
     disconnect(node: PeerNode): Result<void, Error> {
-        this.logger.log('debug', 'disconnect requested',
+        this.logger.debug('disconnect requested',
             {'host': node.key});
         let connection = this.activeConnections.get(node.key);
         if (!connection)
             return err(new Error("No active connection"));
 
-        connection.socket.destroy();
+        connection.destroy();
 
         return ok(undefined);
     }
 
     sendGetQuorumSet(node: PeerNode, hash: Buffer): Result<void, Error> {
-        this.logger.log('debug', 'send get quorum set',
+        this.logger.debug('send get quorum set',
             {'host': node.key});
 
         let result = this.sendStellarMessage(
-            node,
-            xdrMessageCreator.createScpQuorumSetMessage(hash)
+            node, StellarMessage.getScpQuorumset(hash)
         );
 
         if (result.isErr())
@@ -211,12 +184,12 @@ export class ConnectionManager {
     }
 
     sendGetScpStatus(node: PeerNode, ledgerSequence: number = 0): Result<void, Error> {
-        this.logger.log('debug', 'send get scp status for ledger: ' + ledgerSequence,
+        this.logger.debug( 'send get scp status for ledger: ' + ledgerSequence,
             {'host': node.key});
 
         let result = this.sendStellarMessage(
             node,
-            xdrMessageCreator.createGetScpStatusMessage(ledgerSequence)
+            StellarMessage.getScpState(ledgerSequence)
         )
 
         if (result.isErr())
@@ -226,12 +199,12 @@ export class ConnectionManager {
     }
 
     sendGetPeers(node: PeerNode): Result<void, Error> {
-        this.logger.log('debug', 'send get peers msg',
+        this.logger.debug( 'send get peers msg',
             {'host': node.key});
 
         let result = this.sendStellarMessage(
             node,
-            xdrMessageCreator.createGetPeersMessage()
+            StellarMessage.getPeers()
         )
 
         if (result.isErr())
@@ -245,201 +218,77 @@ export class ConnectionManager {
         if (!connection)
             return false;
 
-        return connection.handshakeCompleted;
+        return connection.isConnected();
     }
 
-    protected initiateHandShake(connection: Connection) {
-        this.logger.log('debug', "send HELLO",
-            {'host': connection.toNode.key});
-        let helloResult = xdrMessageCreator.createHelloMessage(
-            connection,
-            this.networkBuffer,
-            this.config.ledgerVersion,
-            this.config.overlayVersion,
-            this.config.overlayMinVersion,
-            this.config.versionString,
-            this.config.listeningPort
-        );
-        if (helloResult.isErr()) {
-            this.logger.log('error', "error creating hello msg",
-                {'host': connection.toNode.key, error: helloResult.error});
-            return;
-        }
-
-        let result = this.sendStellarMessage(
-            connection.toNode,
-            //@ts-ignore
-            helloResult.value,
-            true
-        );
-
-        if (result.isErr())
-            this.logger.log('error', 'send hello msg failed',
-                {'host': connection.toNode.key, error: result.error.message});
-    }
-
-    protected continueHandshake(connection: Connection): void {
-        this.logger.log('debug', "send AUTH",
-            {'host': connection.toNode.key});
-        this.sendAuthMessage(connection);
-    }
-
-    protected finishHandshake(connection: Connection): void {
-        this.logger.log('info', "Fully connected",
-            {'host': connection.toNode.key});
-        connection.handshakeCompleted = true;
-        this._onNodeConnectedCallback(connection.toNode);
-    }
-
-    protected handleData(data: Buffer, connection: Connection) {
-        let buffer;
-        let previousBuffer = this.dataBuffers.get(connection.toNode.key);
-        if (previousBuffer && previousBuffer.length > 0) {
-            buffer = Buffer.concat([previousBuffer, data]);
-        } else {
-            buffer = data;
-        }
-
-        let xdrMessage: Buffer | null = null;
+    protected handleStellarMessage(stellarMessage: xdr.StellarMessage, connection: Connection) {
         try {
-            let messageLength = xdrBufferConverter.getMessageLengthFromXDRBuffer(buffer);
-            //TODO: when a lot of data is sent, this while can block the event loop because every message is processed synch. Use a stream transformer
-            //todo: highWaterMark checking if internal buffer is filling up, and our node is thus lagging behind
-            while (xdrBufferConverter.xdrBufferContainsCompleteMessage(buffer, messageLength)) {
-                [xdrMessage, buffer] = xdrBufferConverter.getMessageFromXdrBuffer(buffer, messageLength);
-                this.handleAuthenticatedMessageXDR(xdrMessage, connection);
-                messageLength = xdrBufferConverter.getMessageLengthFromXDRBuffer(buffer);
-            }
-            this.dataBuffers.set(connection.toNode.key, buffer);
-        } catch (exception) {
-            this.logger.log('error', 'Exception while parsing msg buffer' + exception,
-                {'host': connection.toNode.key});
-        }
-    }
-
-    protected handleAuthenticatedMessageXDR(authenticatedMessageXDR: Buffer, connection: Connection) {
-        let result = parseAuthenticatedMessageXDR(authenticatedMessageXDR);
-        if (result.isErr()) {
-            this.logger.debug('rcv invalid authenticated msg', {'host': connection.toNode.key});
-            return;
-        }
-
-        try {
-            let authenticatedMessageV0 = result.value;
-
-            let messageType = authenticatedMessageV0.messageTypeXDR.readInt32BE(0);
-            if(messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value){
-                if(!connection.remoteSequence.equals(authenticatedMessageV0.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
-                    this.logger.error( 'wrong seq number, disconnecting',
-                        {
-                            'host': connection.toNode.key, 'expected': xdr.Uint64.fromXDR(connection.remoteSequence).toString(),
-                            'received': xdr.Uint64.fromXDR(authenticatedMessageV0.sequenceNumberXDR).toString()
-                        });
-                    connection.socket.destroy();
-                    return;
-                }
-
-                let data = Buffer.concat([
-                    authenticatedMessageV0.sequenceNumberXDR,
-                    authenticatedMessageV0.messageTypeXDR,
-                    authenticatedMessageV0.stellarMessageXDR
-                ]);
-                connection.increaseRemoteSequenceByOne();
-
-                //Todo: move verifymac to the msg handlers. for example we are veryfing macs of scp envelopes that are discarded because we already processed them.
-                let verified = verifyHmac(authenticatedMessageV0.macXDR, connection.receivingMacKey!, data);
-                if(!verified){
-                    this.logger.log('error', 'Invalid hmac, disconnecting',
-                        {
-                            'host': connection.toNode.key
-                        });
-                    connection.socket.destroy();
-                    return;
-                }
-            }
-
-            switch (messageType) {
-                case MessageType.hello().value:
-                    this.logger.log('debug', 'Rcv hello msg',
-                        {'host': connection.toNode.key});
-                    //we parse the xdr in the main thread, because this is a priority message
-                    let helloResult = handleHelloMessageXDR(authenticatedMessageV0.stellarMessageXDR, connection);
-                    if(helloResult.isOk())
-                        this.continueHandshake(connection);
-                    else {
-                        this.logger.log('info', 'Error handling hello',
-                            {'host': connection.toNode.key});
-                        connection.socket.destroy();
-                    }
-                    break;
-                case MessageType.auth().value:
-                    this.logger.log('debug', 'rcv auth msg',
-                        {'host': connection.toNode.key});
-                    this.finishHandshake(connection);
-                    break;
-
+            switch (stellarMessage.switch()) {
                 //we handle a scp quorum set message immediately. However this could be better handled with 'dont have' message parsing.
-                case MessageType.scpQuorumset().value:
-                    this.logger.log('debug', 'rcv scpQuorumSet msg',
+                case MessageType.scpQuorumset():
+                    console.time("scpq")
+                    this.logger.debug( 'rcv scpQuorumSet msg',
                         {'host': connection.toNode.key});
-                    let quorumSetResult = handleSCPQuorumSetMessageXDR(authenticatedMessageV0.stellarMessageXDR);
-                    if (quorumSetResult.isErr()) {
-                        this.logger.log('debug', 'Error parsing qset msg',
-                            {'host': connection.toNode.key, 'error': quorumSetResult.error.message});
+                    let quorumSetResult = getQuorumSetFromMessage(stellarMessage.qSet());
+                    if(quorumSetResult.isErr()) {
+                        this.logger.error('Invalid scpQuorumSet msg',
+                            {'host': connection.toNode.key, error: quorumSetResult.error.message});
+                        connection.destroy();
                     } else {
-                        this._onQuorumSetReceivedCallback(
-                            quorumSetResult.value, connection.toNode
-                        );
+                        this._onQuorumSetReceivedCallback(quorumSetResult.value, connection.toNode);
                     }
+                    console.timeEnd("scpq")
                     break;
 
-                case MessageType.errorMsg().value:
-                    let errorResult = handleErrorMessageXDR(authenticatedMessageV0.stellarMessageXDR);
-                    if(errorResult.isErr()){
-                        this.logger.log('debug', 'Error parsing error msg',
-                            {'host': connection.toNode.key}, errorResult.error);
-                    }else if (errorResult.value.code() === xdr.ErrorCode.errLoad()) {
-                        this.logger.log('info', 'rcv high load msg',
+                case MessageType.errorMsg():
+                    if (stellarMessage.error().code() === xdr.ErrorCode.errLoad()) {
+                        this.logger.info('info', 'rcv high load msg',
                             {'host': connection.toNode.key});
                         if (this._onLoadTooHighCallback)
                             this._onLoadTooHighCallback(connection.toNode);
                     } else {
-                        this.logger.log('info', 'Error msg received',
-                            {'host': connection.toNode.key, error: errorResult.value.msg().toString()});
-                    }
+                        this.logger.info('info', 'Error msg received',
+                            {'host': connection.toNode.key, error: stellarMessage.error().msg()});
+                    }//todo: return error
                     break;
 
                 //queued worker pool messages
-                case MessageType.peers().value:
-                    this.logger.log('debug', 'rcv peer msg',
+                case MessageType.peers():
+                    console.time("peer")
+                    this.logger.debug( 'rcv peer msg',
                         {'host': connection.toNode.key});
-                    this.pool.proxy()
-                        .then(worker => {
-                            return worker.handlePeersMessageXDR(authenticatedMessageV0.stellarMessageXDR, this.networkBuffer);
-                        })
-                        .then((peers) => {
-                                //@ts-ignore
-                                this._onPeersReceivedCallback(peers, connection.toNode);
-                            }
-                        ).catch(error => {
-                        this.logger.error('Error parsing peers msg',
-                            {'host': connection.toNode.key, 'error': error.message});
-                    });
+                    this._onPeersReceivedCallback(stellarMessage.peers().map(peer => {
+                        return new PeerNode(
+                            getIpFromPeerAddress(peer),
+                            peer.port()
+                        )
+                    }), connection.toNode);
+                    console.timeEnd("peer")
                     break;
-                case MessageType.scpMessage().value:
+
+                case MessageType.scpMessage():
                     this.logger.debug('rcv scp msg', {'host': connection.toNode.key});
-                    let signature = extractSignatureFromSCPEnvelope(authenticatedMessageV0.stellarMessageXDR).toString('base64');
+                    let signature = stellarMessage.envelope().signature().toString();
                     if (this.processedEnvelopes.has(signature)) {
                         return;
                     }
                     this.processedEnvelopes.set(signature, 1);
                     this.pool.proxy()
                         .then(worker => {
-                            return worker.handleSCPMessageXDR(authenticatedMessageV0.stellarMessageXDR, this.networkBuffer)
+                            return worker.verifyStatementXDRSignature(
+                                stellarMessage.envelope().statement().toXDR(),
+                                stellarMessage.envelope().statement().nodeId().value(),
+                                stellarMessage.envelope().signature(),
+                                this.networkIDBuffer);
                         })
-                        .then((message) => {
-                                //@ts-ignore
-                                this._onSCPStatementReceivedCallback(message, connection.toNode);
+                        .then((verified) => {
+                            //@ts-ignore
+                                if (verified)
+                                    return this._onSCPStatementReceivedCallback(stellarMessage.envelope().statement(), connection.toNode);
+                                else {
+                                    this.logger.error('Invalid signature',
+                                        {'host': connection.toNode.key});
+                                }
                             }
                         ).catch(error => {
                         this.logger.error('Error parsing scp msg',
@@ -449,74 +298,32 @@ export class ConnectionManager {
                     break;
 
                 //todo: define in app settings if transactions should be processed.
-                case MessageType.transaction().value://transaction
-                    this.logger.log('debug', 'rcv transaction msg',
+                case MessageType.transaction()://transaction
+                    this.logger.debug( 'rcv transaction msg',
                         {'host': connection.toNode.key});
                     break;
 
                 default:
-                    this.logger.log('debug', 'rcv unsupported msg type' + messageType,
+                    this.logger.debug( 'rcv unsupported msg type' + stellarMessage.switch().name,
                         {'host': connection.toNode.key});
             }
         } catch
             (e) {
-            console.log(e)
+            console.debug(e)
         }
 
     }
 
     protected sendAuthMessage(connection: Connection) {
-        this.logger.log('debug', 'send auth msg',
+        this.logger.debug( 'send auth msg',
             {'host': connection.toNode.key});
-
-        let result = this.sendStellarMessage(
-            connection.toNode,
-            xdrMessageCreator.createAuthMessage(),
-            true
-        );
-
-        if (result.isErr())
-            this.logger.log('debug', 'send auth msg failed',
-                {'host': connection.toNode.key, error: result.error.message});
     }
 
-    protected sendStellarMessage(node: PeerNode, message: StellarMessage, handshakeMessage: boolean = false): Result<void, Error> {
+    protected sendStellarMessage(node: PeerNode, message: StellarMessage): Result<void, Error> {
         let connection = this.activeConnections.get(node.key);
         if (!connection)
             return err(new Error("No active connection"));
 
-        if (handshakeMessage && connection.handshakeCompleted)
-            return err(new Error("Cannot send msg, handshake already completed"));
-
-        if (!handshakeMessage && !connection.handshakeCompleted)
-            return err(new Error("Cannot send msg, handshake not yet completed"));
-
-        let authMsgResult = connection.authenticateMessage(message);
-        if (message.switch() !== MessageType.hello())
-            connection.increaseLocalSequenceByOne();
-
-        if (authMsgResult.isErr())
-            return err(authMsgResult.error);
-
-        let result = this.writeMessageToSocket(connection.socket, authMsgResult.value);
-        if (result.isErr())
-            return err(result.error);
-
-        return ok(result.value);
-    }
-
-    protected writeMessageToSocket(socket: net.Socket, message: xdr.AuthenticatedMessage): Result<void, Error> {
-        if (!socket.writable)
-            return err(new Error("Socket not writable"));
-
-        let bufferResult = xdrBufferConverter.getXdrBufferFromMessage(message);
-        if(bufferResult.isErr()){
-            return err(bufferResult.error);
-        }
-
-        if (!socket.write(bufferResult.value)) //todo: implement callback to notify when command was sent successfully.
-            return err(new Error("Could not write to socket"));
-
-        return ok(undefined);
+        return connection.sendStellarMessage(message)
     }
 }

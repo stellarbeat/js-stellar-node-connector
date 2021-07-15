@@ -1,11 +1,10 @@
 import {hash, Keypair, xdr} from "stellar-base";
 import * as sodium from 'sodium-native'
-import * as crypto from "crypto";
 import EnvelopeType = xdr.EnvelopeType;
 import Uint64 = xdr.Uint64;
 import UnsignedHyper = xdr.UnsignedHyper;
 import BigNumber from "bignumber.js";
-import {createSHA256Hmac, verifySignature} from "./crypto";
+import {createSHA256Hmac, verifySignature} from "../crypto-helper";
 
 type Curve25519SecretBuffer = Buffer;
 type Curve25519PublicBuffer = Buffer;
@@ -54,7 +53,7 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
 
             let zeroSalt = Buffer.alloc(32);
 
-            sharedKey = crypto.createHmac('SHA256', zeroSalt).update(buf).digest();
+            sharedKey = createSHA256Hmac(buf, zeroSalt);
             if (weCalledRemote)
                 this.weCalledRemoteSharedKeys.set(remotePublicKeyECDHString, sharedKey);
             else
@@ -131,6 +130,4 @@ export class ConnectionAuthentication { //todo: introduce 'fromNode'
 
         return createSHA256Hmac(buf, sharedKey);
     }
-
-
 }

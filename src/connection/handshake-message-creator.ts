@@ -1,5 +1,4 @@
 import {xdr} from "stellar-base";
-import {Connection} from './connection';
 import {err, ok, Result} from "neverthrow";
 import AuthCert = xdr.AuthCert;
 import Hello = xdr.Hello;
@@ -8,25 +7,14 @@ import {ConnectionAuthentication} from "./connection-authentication";
 const StellarBase = require('stellar-base');
 
 export default {
-
-    createScpQuorumSetMessage(hash: Buffer) {
-        return new StellarBase.xdr.StellarMessage.getScpQuorumset(hash);
-    },
-
-    createGetPeersMessage() {
-        return new StellarBase.xdr.StellarMessage.getPeer();
-    },
-
-    createGetScpStatusMessage(ledgerSequence: number = 0) {
-        return new StellarBase.xdr.StellarMessage.getScpState(ledgerSequence);
-    },
-
     createAuthMessage: function () {
         let auth = new StellarBase.xdr.Auth({unused: 1});
         return new StellarBase.xdr.StellarMessage.auth(auth);
     },
 
-    createHelloMessage: function (connection: Connection,
+    createHelloMessage: function (peerId: xdr.PublicKey,
+                                  nonce: Buffer,
+                                  authCert: xdr.AuthCert,
                                   stellarNetworkId: Buffer,
                                   ledgerVersion: number,
                                   overlayVersion: number,
@@ -35,10 +23,6 @@ export default {
                                   listeningPort: number
     ): Result<Hello, Error> {
         try {
-            let certResult = this.createAuthCert(connection.connectionAuthentication);
-            if(certResult.isErr())
-                return err(certResult.error);
-
             let hello = new StellarBase.xdr.Hello({
                 ledgerVersion: ledgerVersion,
                 overlayVersion: overlayVersion,
@@ -46,9 +30,9 @@ export default {
                 networkId: stellarNetworkId,
                 versionStr: versionStr,
                 listeningPort: listeningPort,
-                peerId: connection.keyPair.xdrPublicKey(),
-                cert: certResult.value,
-                nonce: connection.localNonce
+                peerId: peerId,
+                cert: authCert,
+                nonce: nonce
             });
 
             return ok(new StellarBase.xdr.StellarMessage.hello(hello));

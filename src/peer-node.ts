@@ -1,5 +1,4 @@
 import {StrKey, xdr} from "stellar-base";
-import {Connection} from "./connection";
 
 export class PeerNode {
     public ip: string;
