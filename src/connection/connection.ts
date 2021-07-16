@@ -60,11 +60,15 @@ export default class Connection extends Duplex {
     protected reading: boolean = false;
     protected readState: ReadState = ReadState.ReadyForLength;
     protected handshakeState: HandshakeState = HandshakeState.CONNECTING;
+    protected remoteCalledUs: boolean = true;
 
     //todo: dedicated connectionConfig
-    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication, networkIDBuffer: Buffer, config: Config, logger: Logger) {
+    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication, networkIDBuffer: Buffer, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
         super({objectMode: true});
         this.socket = socket;
+        if(this.socket.readable)
+            this.handshakeState = HandshakeState.CONNECTED;
+        this.remoteCalledUs = remoteCalledUs;
         this.socket.setTimeout(2500);
         this.connectionAuthentication = connectionAuth;
         this.networkIDBuffer = networkIDBuffer;
@@ -88,6 +92,7 @@ export default class Connection extends Duplex {
     }
 
     public connect() {
+        this.handshakeState = HandshakeState.CONNECTING;
         this.socket.connect(this.toNode.port, this.toNode.ip);
     }
 
@@ -217,7 +222,6 @@ export default class Connection extends Duplex {
         }
 
         return ok(true);
-
     }
 
     protected verifyAuthentication(authenticatedMessageV0XDR: AuthenticatedMessageV0, messageType: number, body: Buffer): Result<void, Error> {
@@ -414,8 +418,8 @@ export default class Connection extends Duplex {
         this.remoteNonce = hello.nonce();
         this.remotePublicKeyECDH = hello.cert().pubkey().key();
         this.toNode.updateFromHelloMessage(hello);
-        this.sendingMacKey = this.connectionAuthentication.getSendingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH);
-        this.receivingMacKey = this.connectionAuthentication.getReceivingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH);
+        this.sendingMacKey = this.connectionAuthentication.getSendingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
+        this.receivingMacKey = this.connectionAuthentication.getReceivingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
 
         return ok(undefined);
     }

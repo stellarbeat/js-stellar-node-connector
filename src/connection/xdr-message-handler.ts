@@ -1,7 +1,6 @@
 /*
-Fast way to determine message type without parsing the whole xdr through the StellarBase xdr class todo: improve doc
+Fast way to determine message type without parsing the whole xdr through the StellarBase xdr class
  */
-import {hash, StrKey, xdr} from "stellar-base";
 import {ok, err, Result} from 'neverthrow'
 
 export interface AuthenticatedMessageV0{
