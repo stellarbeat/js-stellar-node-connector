@@ -2,10 +2,8 @@ import {FastSigning, hash, Keypair, Networks, xdr} from "stellar-base";
 
 import {QuorumSet} from "@stellarbeat/js-stellar-domain";
 import * as net from 'net';
-import xdrMessageCreator from "./connection/handshake-message-creator";
 import Connection from "./connection/connection";
 import * as winston from "winston";
-import * as pino from "pino";
 
 require('dotenv').config();
 import {PeerNode} from "./peer-node";
@@ -16,9 +14,8 @@ import * as LRUCache from "lru-cache";
 import StellarMessage = xdr.StellarMessage;
 import {err, ok, Result} from "neverthrow";
 import {ConnectionAuthentication} from "./connection/connection-authentication";
-import {verifyHmac} from "./crypto-helper";
 import {Config, getConfig} from "./config";
-import {getIpFromPeerAddress, getQuorumSetFromMessage, verifyStatementXDRSignature} from "./stellar-message-service";
+import {getIpFromPeerAddress, getQuorumSetFromMessage} from "./stellar-message-service";
 
 type nodeKey = string;
 
@@ -177,8 +174,10 @@ export class ConnectionManager {
             node, StellarMessage.getScpQuorumset(hash)
         );
 
-        if (result.isErr())
+        if (result.isErr()){
+            this.logger.debug(result.error.message, {'host': node.key});
             return err(result.error);
+        }
 
         return ok(undefined);
     }
@@ -226,7 +225,6 @@ export class ConnectionManager {
             switch (stellarMessage.switch()) {
                 //we handle a scp quorum set message immediately. However this could be better handled with 'dont have' message parsing.
                 case MessageType.scpQuorumset():
-                    console.time("scpq")
                     this.logger.debug( 'rcv scpQuorumSet msg',
                         {'host': connection.toNode.key});
                     let quorumSetResult = getQuorumSetFromMessage(stellarMessage.qSet());
@@ -237,7 +235,6 @@ export class ConnectionManager {
                     } else {
                         this._onQuorumSetReceivedCallback(quorumSetResult.value, connection.toNode);
                     }
-                    console.timeEnd("scpq")
                     break;
 
                 case MessageType.errorMsg():
@@ -247,14 +244,13 @@ export class ConnectionManager {
                         if (this._onLoadTooHighCallback)
                             this._onLoadTooHighCallback(connection.toNode);
                     } else {
-                        this.logger.info('info', 'Error msg received',
-                            {'host': connection.toNode.key, error: stellarMessage.error().msg()});
+                        this.logger.info('Error msg received',
+                            {'host': connection.toNode.key, error: stellarMessage.error().msg().toString()});
                     }//todo: return error
                     break;
 
                 //queued worker pool messages
                 case MessageType.peers():
-                    console.time("peer")
                     this.logger.debug( 'rcv peer msg',
                         {'host': connection.toNode.key});
                     this._onPeersReceivedCallback(stellarMessage.peers().map(peer => {
@@ -263,7 +259,11 @@ export class ConnectionManager {
                             peer.port()
                         )
                     }), connection.toNode);
-                    console.timeEnd("peer")
+                    break;
+
+                case MessageType.dontHave():
+                    console.log(stellarMessage.dontHave().type());
+                    console.log(stellarMessage.dontHave().reqHash().toString('base64'));
                     break;
 
                 case MessageType.scpMessage():

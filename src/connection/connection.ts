@@ -339,17 +339,21 @@ export default class Connection extends Duplex {
 
     //todo handshakeMessage should be derived from state
     public sendStellarMessage(message: StellarMessage): Result<void, Error> {
-
+        this.logger.debug("Sending message of type: " + message.switch().name,
+            {'host': this.toNode.key});
         let authMsgResult = this.authenticateMessage(message);
-        if (this.handshakeState > HandshakeState.GOT_HELLO)
+        if (this.handshakeState >= HandshakeState.GOT_HELLO)
             this.increaseLocalSequenceByOne();
 
         if (authMsgResult.isErr())
             return err(authMsgResult.error);
 
         let result = this.writeMessageToSocket(this.socket, authMsgResult.value);
-        if (result.isErr())
+        if (result.isErr()){
+            this.logger.debug(result.error.message,
+                {'host': this.toNode.key});
             return err(result.error);
+        }
 
         return ok(result.value);
     }
@@ -436,6 +440,7 @@ export default class Connection extends Duplex {
             return err(bufferResult.error);
         }
 
+        this.logger.debug('Writing msg to buffer: ' + bufferResult.value.toString('base64'), {'host': this.toNode.key});
         if (!socket.write(bufferResult.value)) //todo: implement callback to notify when command was sent successfully.
             return err(new Error("Could not write to socket"));
 

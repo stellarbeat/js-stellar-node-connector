@@ -1,3 +1,4 @@
+const SCPStatement = require("../lib").SCPStatement;
 const PeerNode = require("../lib").PeerNode;
 const ConnectionManager = require("../lib").ConnectionManager;
 const StellarBase = require('stellar-base');
@@ -33,8 +34,10 @@ function connect() {
     connectionManager.connect(new PeerNode(ip, port));
 }
 
-function onSCPStatementReceivedCallback(scpStatement) {
-    console.log(scpStatement);
+function onSCPStatementReceivedCallback(scpStatement, toNode) {
+    let statement =SCPStatement.fromXdr(scpStatement);
+    //connectionManager.sendGetQuorumSet(toNode, Buffer.alloc(32));//Buffer.from(statement.value.pledges.quorumSetHash, 'base64'));
+
     /*console.log(scpStatement.slotIndex);
     console.log(scpStatement.nodeId);*/
 }
