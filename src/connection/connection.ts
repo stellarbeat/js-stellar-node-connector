@@ -168,6 +168,11 @@ export default class Connection extends Duplex {
                             this.reading = false;
                     })
                 }
+                if(this.readState === ReadState.Blocked) {
+                    //we don't process anymore messages because consumer cant handle it.
+                    // When our internal buffer reaches the highwatermark, the underlying tcp protocol will signal the sender that we can't handle the traffic.
+                    this.reading = false;
+                }
 
                 if (processError || !this.reading) {
                     done(processError);
@@ -216,6 +221,10 @@ export default class Connection extends Duplex {
                 let result = this.handleStellarMessage(StellarMessage.fromXDR(data.slice(12, data.length - 32)));
                 if(result.isErr())
                     return err(result.error);
+                if(!result.value){
+                    this.readState = ReadState.Blocked;
+                    return ok(false);
+                }//could not push message to consumer because of backpressure
             } catch (error) {
                 return err(error);
             }
@@ -255,7 +264,7 @@ export default class Connection extends Duplex {
         }
     }
 
-    protected handleStellarMessage(stellarMessage: StellarMessage) {
+    protected handleStellarMessage(stellarMessage: StellarMessage): Result<boolean, Error> {
         switch (stellarMessage.switch()) {
             case MessageType.hello():
                 this.logger.debug('rcv hello msg',
@@ -267,22 +276,19 @@ export default class Connection extends Duplex {
                 }
                 this.handshakeState = HandshakeState.GOT_HELLO;
                 this.sendAuthMessage();
-                break;
-
+                return ok(true);
             case MessageType.auth():
                 this.logger.debug('rcv auth msg',
                     {'host': this.toNode.key});
                 this.completeHandshake();
-                break;
+                return ok(true);
             case MessageType.transaction():
                 this.logger.debug('rcv transaction msg',
                     {'host': this.toNode.key});
-                break;
-            default:
-                this.push(stellarMessage);//todo backpressure
+                return ok(true);
+            default: // we push the message to the consumer
+                return ok(this.push(stellarMessage));
         }
-
-        return ok(undefined);
     }
 
     protected initiateHandShake(): Result<void, Error> {
@@ -440,15 +446,29 @@ export default class Connection extends Duplex {
     }
 
     //socket methods
-    _read() {
+    public _read() {
+        if (this.handshakeState !== HandshakeState.COMPLETED) {
+            return;
+        }
 
+        if (this.readState === ReadState.Blocked) {//the consumer wants to read again
+            this.logger.debug('ReadState unblocked by consumer',
+                {'host': this.toNode.key});
+            this.readState = ReadState.ReadyForLength;
+        }
+        // Trigger a read but wait until the end of the event loop.
+        // This is necessary when reading in paused mode where
+        // _read was triggered by stream.read() originating inside
+        // a "readable" event handler. Attempting to push more data
+        // synchronously will not trigger another "readable" event.
+        setImmediate(() => this.onReadable());
     }
 
-    /*_write(stellarMessage, encoding, cb) {
-        //validate
-        //authenticate
-        //write
-   }*/
+    public _write(message: StellarMessage, encoding: string, cb: (err: Error) => void) {
+        let result = this.sendStellarMessage(message);
+        if(result.isErr())
+            cb(result.error);
+    }
 
     _final(cb: any) {
         this.socket.end(cb);
