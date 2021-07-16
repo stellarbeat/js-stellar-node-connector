@@ -100,8 +100,8 @@ export class ConnectionManager {
     }
 
     protected initializeDefaultLogger() {
-        this.logger = require('pino')();
-        return;//todo: winston is creating blocking issues
+       // this.logger = require('pino')();
+        //return;//todo: winston is creating blocking issues
         this.logger = winston.createLogger({
             level: this.config.logLevel,
             transports: [

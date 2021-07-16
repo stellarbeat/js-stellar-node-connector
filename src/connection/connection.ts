@@ -1,9 +1,8 @@
 import BigNumber from "bignumber.js";
-
-const StellarBase = require('stellar-base');
 import {PeerNode} from "../peer-node"; //todo reduce dependency?
 import {Keypair, xdr} from "stellar-base";
 import {err, ok, Result} from "neverthrow";
+import * as net from 'net';
 import {Socket} from 'net';
 import {ConnectionAuthentication} from "./connection-authentication";
 import {createSHA256Hmac, verifyHmac} from "../crypto-helper";
@@ -11,14 +10,26 @@ import {Duplex} from "stream";
 import {Logger} from "winston";
 import xdrMessageCreator from "./handshake-message-creator";
 import {Config} from "../config";
-import StellarMessage = xdr.StellarMessage;
-import MessageType = xdr.MessageType;
-import * as net from "net";
 import xdrBufferConverter from "./xdr-buffer-converter";
 import * as async from "async";
-import {
-    parseAuthenticatedMessageXDR
-} from "./xdr-message-handler"
+import {AuthenticatedMessageV0, parseAuthenticatedMessageXDR} from "./xdr-message-handler"
+
+const StellarBase = require('stellar-base');
+import StellarMessage = xdr.StellarMessage;
+import MessageType = xdr.MessageType;
+
+enum ReadState {
+    ReadyForLength,
+    ReadyForMessage,
+    Blocked
+}
+
+enum HandshakeState {
+    CONNECTING,
+    CONNECTED,
+    GOT_HELLO,
+    COMPLETED
+}
 
 /**
  * Duplex stream that wraps a tcp socket and handles the handshake to a stellar core node and all authentication verification of overlay messages.
@@ -26,7 +37,6 @@ import {
  * It returns xdr.StellarMessages to the consumer.
  * It accepts xdr.StellarMessages when handshake is completed and wraps them in a correct AuthenticatedMessage before sending
  *
- * todo add connectionState for cleaner code
  * inspired by https://www.derpturkey.com/extending-tcp-socket-in-node-js/
  */
 export default class Connection extends Duplex {
@@ -39,17 +49,17 @@ export default class Connection extends Duplex {
     protected remoteNonce?: Buffer;
     protected localSequence: Buffer;
     protected remoteSequence: Buffer;
-    protected handshakeCompleted: boolean = false;
     protected socket: Socket;
     protected logger: Logger;
     protected sendingMacKey?: Buffer;
     protected receivingMacKey?: Buffer;
-    protected parseMessageLength: boolean = true;
     protected lengthNextMessage: number = 0;
     protected networkIDBuffer: Buffer;
     protected config: Config;
     protected processTransactions: boolean = false;
     protected reading: boolean = false;
+    protected readState: ReadState = ReadState.ReadyForLength;
+    protected handshakeState: HandshakeState = HandshakeState.CONNECTING;
 
     //todo: dedicated connectionConfig
     constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication, networkIDBuffer: Buffer, config: Config, logger: Logger) {
@@ -82,7 +92,7 @@ export default class Connection extends Duplex {
     }
 
     public isConnected() {
-        return this.handshakeCompleted;
+        return this.handshakeState === HandshakeState.COMPLETED;
     }
 
     public end() {
@@ -95,34 +105,12 @@ export default class Connection extends Duplex {
         return this;
     }
 
-    //todo handshakeMessage should be derived from state
-    public sendStellarMessage(message: StellarMessage, handshakeMessage: boolean = false): Result<void, Error> {
-
-        if (handshakeMessage && this.handshakeCompleted)
-            return err(new Error("Cannot send msg, handshake already completed"));
-
-        if (!handshakeMessage && this.handshakeCompleted)
-            return err(new Error("Cannot send msg, handshake not yet completed"));
-
-        let authMsgResult = this.authenticateMessage(message);
-        if (message.switch() !== MessageType.hello())
-            this.increaseLocalSequenceByOne();
-
-        if (authMsgResult.isErr())
-            return err(authMsgResult.error);
-
-        let result = this.writeMessageToSocket(this.socket, authMsgResult.value);
-        if (result.isErr())
-            return err(result.error);
-
-        return ok(result.value);
-    }
-
     /**
      * Fires when the socket has connected. This method initiates the
      * handshake and if there is a failure, terminates the connection.
      */
     protected onConnected() {
+        this.handshakeState = HandshakeState.CONNECTED;
         let result = this.initiateHandShake();
         if (result.isErr())
             this.logger.debug('error', result.error.message,
@@ -133,6 +121,9 @@ export default class Connection extends Duplex {
         this.logger.debug('Rcv readable event',
             {'host': this.toNode.key});
 
+        //a socket can receive a 'readable' event when already processing a previous readable event.
+        // Because the same internal read buffer is processed (the running whilst loop will also loop over the new data),
+        // we can safely ignore it.
         if (this.reading) {
             this.logger.debug('Ignoring, already reading');
             return;
@@ -144,118 +135,150 @@ export default class Connection extends Duplex {
             this.logger.debug('Socket buffer exceeding high watermark',
                 {'host': this.toNode.key});
 
-        let handledMessages = 0;
-        async.whilst((cb) => {// async loop to interleave sockets, otherwise handling all the messages in the buffer is blocking
+        let processedMessages = 0;
+        async.whilst((cb) => {// async loop to interleave sockets, otherwise handling all the messages in the buffer is a blocking loop
                 return cb(null, this.reading);
             },
             (done) => {
-                if (this.parseMessageLength) {
-                    this.logger.debug('Parsing msg length',
-                        {'host': this.toNode.key});
-                    let data = this.socket.read(4);
-                    if (data) {
-                        this.lengthNextMessage = xdrBufferConverter.getMessageLengthFromXDRBuffer(data);
-                        this.logger.debug('Next msg length: ' + this.lengthNextMessage,
-                            {'host': this.toNode.key});
-                        this.parseMessageLength = false;
+                let processError = null;
+
+                if (this.readState === ReadState.ReadyForLength) {
+                    if (this.processNextMessageLength()) {
+                        this.readState = ReadState.ReadyForMessage;
                     } else {
-                        this.reading = false;
-                        this.logger.debug('Not enough data left in chunk',
-                            {'host': this.toNode.key});
+                        this.reading = false;//we stop processing the buffer
                     }
                 }
 
-                if (!this.parseMessageLength) {
-                    //If size bytes are not available to be read, null will be returned unless the stream has ended, in which case all of the data remaining in the internal buffer will be returned.
-                    let data = this.socket.read(this.lengthNextMessage);
-                    if (!data) {
-                        this.reading = false;
-                        this.logger.debug('Not enough data left in chunk',
-                            {'host': this.toNode.key});
-                    } else {
-                        let result = parseAuthenticatedMessageXDR(data);//if transactions are not required, we avoid parsing them to objects and verifying the macs to gain performance
-                        if (result.isErr()) {
-                            return done(new Error('Invalid authenticated msg'));
-                        }
-                        let authenticatedMessageV0XDR = result.value;
-
-                        let messageType = authenticatedMessageV0XDR.messageTypeXDR.readInt32BE(0);
-                        this.logger.debug('Rcv msg of type: ' + messageType + ' with seq: ' + authenticatedMessageV0XDR.sequenceNumberXDR.readInt32BE(4),
-                            {'host': this.toNode.key});
-                        if (messageType !== MessageType.hello().value && messageType !== MessageType.errorMsg().value) {
-                            if (!this.remoteSequence.equals(authenticatedMessageV0XDR.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
-                                return done(new Error('Wrong sequence number'));
-                            }
-                            this.increaseRemoteSequenceByOne();
-
-                            if (messageType !== MessageType.transaction().value) {//we ignore transaction msg for the moment
-                                let verified = verifyHmac(authenticatedMessageV0XDR.macXDR, this.receivingMacKey!, data.slice(4, data.length - 32));
-                                if (!verified) {
-                                    return done(new Error('Wrong hmac'));
-                                }
-                            }
-                        }
-
-                        handledMessages++;
-                        this.lengthNextMessage = 0;
-                        this.parseMessageLength = true;
-
-                        if (!(!this.processTransactions && messageType === MessageType.transaction().value)) {
-                            this.handleStellarMessage(StellarMessage.fromXDR(data.slice(12, data.length - 32)));
-                        }
-
-                    }
+                if (this.readState === ReadState.ReadyForMessage) {
+                    this.processNextMessage()
+                        .map(containedAMessage => {
+                            if (containedAMessage) {
+                                this.readState = ReadState.ReadyForLength;
+                                processedMessages++;
+                            } else
+                                this.reading = false;
+                        }).mapErr((error) => {
+                            processError = error;
+                            this.reading = false;
+                    })
                 }
 
-                if (this.reading){
-                    setTimeout(() => done(null),0);//there is data left, but we want to give other sockets a go at the event loop
+                if (processError || !this.reading) {
+                    done(processError);
+                } else {
+                    setTimeout(() => done(null), 0);//there is data left, but we want to give other sockets a go in the event loop
                 }
-                else{
-                    done(null);//no more reading, we run the callback immediately
-                }
-
-            }, (error) => {
+            }, (error) => {//function gets called when we are no longer reading
                 if (error) {
                     this.logger.error(error.message, {'host': this.toNode.key});
-                    this.reading = false;
                     this.socket.destroy();
                 }
-                if (!this.reading) {
-                    this.logger.debug('handled messages in chunk: ' + handledMessages);
-                }
+
+                this.logger.debug('handled messages in chunk: ' + processedMessages);
             }
         );
+    }
+
+    protected processNextMessage(): Result<boolean, Error> {
+        //If size bytes are not available to be read, null will be returned unless the stream has ended, in which case all of the data remaining in the internal buffer will be returned.
+        let data = this.socket.read(this.lengthNextMessage);
+        if (!data) {
+            this.logger.debug('Not enough data left in buffer',
+                {'host': this.toNode.key});
+            return ok(false);
+        }
+
+        let result = parseAuthenticatedMessageXDR(data);//if transactions are not required, we avoid parsing them to objects and verifying the macs to gain performance
+        if (result.isErr()) {
+            return err(result.error);
+        }
+
+        let authenticatedMessageV0XDR = result.value;
+        let messageType = authenticatedMessageV0XDR.messageTypeXDR.readInt32BE(0);
+        this.logger.debug('Rcv msg of type: ' + messageType + ' with seq: ' + authenticatedMessageV0XDR.sequenceNumberXDR.readInt32BE(4),
+            {'host': this.toNode.key});
+
+        if (this.handshakeState >= HandshakeState.GOT_HELLO && messageType !== MessageType.errorMsg().value) {
+            let result = this.verifyAuthentication(authenticatedMessageV0XDR, messageType, data.slice(4, data.length - 32));
+            this.increaseRemoteSequenceByOne();
+            if (result.isErr())
+                return err(result.error);
+        }
+
+        if (!(!this.processTransactions && messageType === MessageType.transaction().value)) {
+            try {
+                let result = this.handleStellarMessage(StellarMessage.fromXDR(data.slice(12, data.length - 32)));
+                if(result.isErr())
+                    return err(result.error);
+            } catch (error) {
+                return err(error);
+            }
+        }
+
+        return ok(true);
+
+    }
+
+    protected verifyAuthentication(authenticatedMessageV0XDR: AuthenticatedMessageV0, messageType: number, body: Buffer): Result<void, Error> {
+        if (!this.remoteSequence.equals(authenticatedMessageV0XDR.sequenceNumberXDR)) {//must be handled on main thread because workers could mix up order of messages.
+            return err(new Error('Invalid sequence number'));
+        }
+
+        if (messageType !== MessageType.transaction().value) {//we ignore transaction msg for the moment
+            if (!verifyHmac(authenticatedMessageV0XDR.macXDR, this.receivingMacKey!, body)) {
+                return err(new Error('Invalid hmac'));
+            }
+        }
+
+        return ok(undefined);
+    }
+
+    protected processNextMessageLength() {
+        this.logger.debug('Parsing msg length',
+            {'host': this.toNode.key});
+        let data = this.socket.read(4);
+        if (data) {
+            this.lengthNextMessage = xdrBufferConverter.getMessageLengthFromXDRBuffer(data);
+            this.logger.debug('Next msg length: ' + this.lengthNextMessage,
+                {'host': this.toNode.key});
+            return true;
+        } else {
+            this.logger.debug('Not enough data left in buffer',
+                {'host': this.toNode.key});
+            return false;
+            //we stay in the ReadyForLength state until the next readable event
+        }
     }
 
     protected handleStellarMessage(stellarMessage: StellarMessage) {
         switch (stellarMessage.switch()) {
             case MessageType.hello():
-                this.logger.debug('handle hello msg',
+                this.logger.debug('rcv hello msg',
                     {'host': this.toNode.key});
 
-                let helloProcessedResult = this.processHelloMessage(stellarMessage.hello());
-                if (helloProcessedResult.isOk())
-                    this.continueHandshake();
-                else {
-                    this.logger.info(helloProcessedResult.error.message,
-                        {'host': this.toNode.key});
-                    this.destroy();
+                let result = this.processHelloMessage(stellarMessage.hello());
+                if (result.isErr()) {
+                    return err(result.error);
                 }
+                this.handshakeState = HandshakeState.GOT_HELLO;
+                this.sendAuthMessage();
                 break;
 
             case MessageType.auth():
-                this.logger.debug('handle auth msg',
+                this.logger.debug('rcv auth msg',
                     {'host': this.toNode.key});
-                this.finishHandshake();
+                this.completeHandshake();
                 break;
             case MessageType.transaction():
-                this.logger.debug('handle transaction msg',
+                this.logger.debug('rcv transaction msg',
                     {'host': this.toNode.key});
                 break;
             default:
                 this.push(stellarMessage);//todo backpressure
         }
 
+        return ok(undefined);
     }
 
     protected initiateHandShake(): Result<void, Error> {
@@ -283,8 +306,7 @@ export default class Connection extends Duplex {
 
         let result = this.sendStellarMessage(
             //@ts-ignore
-            helloResult.value,
-            true
+            helloResult.value
         );
 
         if (result.isErr()) {
@@ -296,18 +318,33 @@ export default class Connection extends Duplex {
 
 
     protected continueHandshake(): void {
-        this.logger.debug("send AUTH",
-            {'host': this.toNode.key});
-        this.sendAuthMessage();
+
     }
 
-    protected finishHandshake(): void {
-        this.logger.info("Fully connected",
+    protected completeHandshake(): void {
+        this.logger.debug("Handshake Completed",
             {'host': this.toNode.key});
-        this.handshakeCompleted = true;
+        this.handshakeState = HandshakeState.COMPLETED
         this.socket.setTimeout(30000);
         this.emit("connect");
         this.emit("ready");
+    }
+
+    //todo handshakeMessage should be derived from state
+    public sendStellarMessage(message: StellarMessage): Result<void, Error> {
+
+        let authMsgResult = this.authenticateMessage(message);
+        if (this.handshakeState > HandshakeState.GOT_HELLO)
+            this.increaseLocalSequenceByOne();
+
+        if (authMsgResult.isErr())
+            return err(authMsgResult.error);
+
+        let result = this.writeMessageToSocket(this.socket, authMsgResult.value);
+        if (result.isErr())
+            return err(result.error);
+
+        return ok(result.value);
     }
 
     protected sendAuthMessage() {
