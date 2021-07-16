@@ -328,11 +328,6 @@ export default class Connection extends Duplex {
         return ok(undefined);
     }
 
-
-    protected continueHandshake(): void {
-
-    }
-
     protected completeHandshake(): void {
         this.logger.debug("Handshake Completed",
             {'host': this.toNode.key});

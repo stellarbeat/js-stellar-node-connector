@@ -33,7 +33,7 @@ export class ConnectionManager {
     protected logger!: Logger;
     protected dataBuffers: Map<string, Buffer> = new Map<string, Buffer>();
     protected network: string;
-    protected activeConnections: Map<nodeKey, Connection> = new Map(); //a node is connected when handshake is completed
+    protected connections: Map<nodeKey, Connection> = new Map();
     protected keyPair: Keypair;
     protected networkIDBuffer: Buffer;
     protected pool: WorkerPool;
@@ -136,7 +136,7 @@ export class ConnectionManager {
             .on('close', () => {
                 this.logger.info( "Connection closed",
                     {'host': connection.toNode.key});
-                this.activeConnections.delete(connection.toNode.key);
+                this.connections.delete(connection.toNode.key);
                 this._onNodeDisconnectedCallback(connection.toNode);
             })
             .on('timeout', () => {
@@ -150,7 +150,7 @@ export class ConnectionManager {
 
         connection.connect();
 
-        this.activeConnections.set(connection.toNode.key, connection);
+        this.connections.set(connection.toNode.key, connection);
     }
 
     async terminate() {
@@ -160,7 +160,7 @@ export class ConnectionManager {
     disconnect(node: PeerNode): Result<void, Error> {
         this.logger.debug('disconnect requested',
             {'host': node.key});
-        let connection = this.activeConnections.get(node.key);
+        let connection = this.connections.get(node.key);
         if (!connection)
             return err(new Error("No active connection"));
 
@@ -214,7 +214,7 @@ export class ConnectionManager {
     }
 
     isNodeConnected(node: PeerNode) {//for the outside world, a node is connected when it has completed a handshake
-        let connection = this.activeConnections.get(node.key);
+        let connection = this.connections.get(node.key);
         if (!connection)
             return false;
 
@@ -320,7 +320,7 @@ export class ConnectionManager {
     }
 
     protected sendStellarMessage(node: PeerNode, message: StellarMessage): Result<void, Error> {
-        let connection = this.activeConnections.get(node.key);
+        let connection = this.connections.get(node.key);
         if (!connection)
             return err(new Error("No active connection"));
 
