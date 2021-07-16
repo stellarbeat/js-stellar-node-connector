@@ -171,6 +171,7 @@ export default class Connection extends Duplex {
                 if(this.readState === ReadState.Blocked) {
                     //we don't process anymore messages because consumer cant handle it.
                     // When our internal buffer reaches the highwatermark, the underlying tcp protocol will signal the sender that we can't handle the traffic.
+                    this.logger.debug('Reading blocked');
                     this.reading = false;
                 }
 
@@ -222,6 +223,7 @@ export default class Connection extends Duplex {
                 if(result.isErr())
                     return err(result.error);
                 if(!result.value){
+                    this.logger.debug('Consumer cannot handle load, blocked reading', {'host': this.toNode.key});
                     this.readState = ReadState.Blocked;
                     return ok(false);
                 }//could not push message to consumer because of backpressure
