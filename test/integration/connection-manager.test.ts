@@ -17,6 +17,7 @@ beforeAll(() => {
 })
 afterAll(() => {
     server.close();
+    connectionToServer.destroy();
 })
 
 test("connect", (done) => {
