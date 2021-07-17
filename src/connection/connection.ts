@@ -41,7 +41,7 @@ enum HandshakeState {
  */
 export default class Connection extends Duplex {
 
-    readonly toNode: PeerNode;
+    public toNode?: PeerNode;
     readonly connectionAuthentication: ConnectionAuthentication;
     protected keyPair: Keypair;
     protected remotePublicKeyECDH?: Buffer;
@@ -62,7 +62,7 @@ export default class Connection extends Duplex {
     protected remoteCalledUs: boolean = true;
 
     //todo: dedicated connectionConfig
-    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
+    constructor(keyPair: Keypair, socket: Socket, connectionAuth: ConnectionAuthentication, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
         super({objectMode: true});
         this.socket = socket;
         if(this.socket.readable)
@@ -75,7 +75,6 @@ export default class Connection extends Duplex {
         this.localNonce = StellarBase.hash(BigNumber.random().toString());
         this.localSequence = Buffer.alloc(8);
         this.remoteSequence = Buffer.alloc(8);
-        this.toNode = toNode;
 
         this.socket.on("close", hadError => this.emit("close", hadError));
         this.socket.on("connect", () => this.onConnected());
@@ -88,10 +87,15 @@ export default class Connection extends Duplex {
 
         this.logger = logger;
     }
+    
+    public hostInfo(){
+        return this.socket.remoteAddress + ":"+ this.socket.remotePort + (this.remoteCalledUs ? "(callee)" : "(caller)");
+    }
 
-    public connect() {
+    public connect(toNode: PeerNode) {
+        this.toNode = toNode;
         this.handshakeState = HandshakeState.CONNECTING;
-        this.socket.connect(this.toNode.port, this.toNode.ip);
+        this.socket.connect(toNode.port, toNode.ip);
     }
 
     public isConnected() {
@@ -113,16 +117,19 @@ export default class Connection extends Duplex {
      * handshake and if there is a failure, terminates the connection.
      */
     protected onConnected() {
+        this.logger.debug("Connected to socket", {'host': this.hostInfo()});
         this.handshakeState = HandshakeState.CONNECTED;
-        let result = this.initiateHandShake();
-        if (result.isErr())
-            this.logger.debug('error', result.error.message,
-                {'host': this.toNode.key});
+        let result = this.sendHello();
+        if (result.isErr()){
+            this.logger.error(result.error.message,
+                {'host': this.hostInfo()});
+            this.socket.destroy();
+        }
     }
 
     protected onReadable() {
         this.logger.debug('Rcv readable event',
-            {'host': this.toNode.key});
+            {'host': this.hostInfo()});
 
         //a socket can receive a 'readable' event when already processing a previous readable event.
         // Because the same internal read buffer is processed (the running whilst loop will also loop over the new data),
@@ -136,7 +143,7 @@ export default class Connection extends Duplex {
 
         if (this.socket.readableLength >= this.socket.readableHighWaterMark)
             this.logger.debug('Socket buffer exceeding high watermark',
-                {'host': this.toNode.key});
+                {'host': this.hostInfo()});
 
         let processedMessages = 0;
         async.whilst((cb) => {// async loop to interleave sockets, otherwise handling all the messages in the buffer is a blocking loop
@@ -180,7 +187,7 @@ export default class Connection extends Duplex {
                 }
             }, (error) => {//function gets called when we are no longer reading
                 if (error) {
-                    this.logger.error(error.message, {'host': this.toNode.key});
+                    this.logger.error(error.message, {'host': this.hostInfo()});
                     this.socket.destroy();
                 }
 
@@ -194,7 +201,7 @@ export default class Connection extends Duplex {
         let data = this.socket.read(this.lengthNextMessage);
         if (!data) {
             this.logger.debug('Not enough data left in buffer',
-                {'host': this.toNode.key});
+                {'host': this.hostInfo()});
             return ok(false);
         }
 
@@ -206,7 +213,7 @@ export default class Connection extends Duplex {
         let authenticatedMessageV0XDR = result.value;
         let messageType = authenticatedMessageV0XDR.messageTypeXDR.readInt32BE(0);
         this.logger.debug('Rcv msg of type: ' + messageType + ' with seq: ' + authenticatedMessageV0XDR.sequenceNumberXDR.readInt32BE(4),
-            {'host': this.toNode.key});
+            {'host': this.hostInfo()});
 
         if (this.handshakeState >= HandshakeState.GOT_HELLO && messageType !== MessageType.errorMsg().value) {
             let result = this.verifyAuthentication(authenticatedMessageV0XDR, messageType, data.slice(4, data.length - 32));
@@ -221,7 +228,7 @@ export default class Connection extends Duplex {
                 if(result.isErr())
                     return err(result.error);
                 if(!result.value){
-                    this.logger.debug('Consumer cannot handle load, blocked reading', {'host': this.toNode.key});
+                    this.logger.debug('Consumer cannot handle load, blocked reading', {'host': this.hostInfo()});
                     this.readState = ReadState.Blocked;
                     return ok(false);
                 }//could not push message to consumer because of backpressure
@@ -249,51 +256,61 @@ export default class Connection extends Duplex {
 
     protected processNextMessageLength() {
         this.logger.debug('Parsing msg length',
-            {'host': this.toNode.key});
+            {'host': this.hostInfo()});
         let data = this.socket.read(4);
         if (data) {
             this.lengthNextMessage = xdrBufferConverter.getMessageLengthFromXDRBuffer(data);
             this.logger.debug('Next msg length: ' + this.lengthNextMessage,
-                {'host': this.toNode.key});
+                {'host': this.hostInfo()});
             return true;
         } else {
             this.logger.debug('Not enough data left in buffer',
-                {'host': this.toNode.key});
+                {'host': this.hostInfo()});
             return false;
             //we stay in the ReadyForLength state until the next readable event
         }
     }
 
+    //return true if handling was succesfull, false if consumer was overloaded, Error on error
     protected handleStellarMessage(stellarMessage: StellarMessage): Result<boolean, Error> {
         switch (stellarMessage.switch()) {
             case MessageType.hello():
                 this.logger.debug('rcv hello msg',
-                    {'host': this.toNode.key});
+                    {'host': this.hostInfo()});
 
-                let result = this.processHelloMessage(stellarMessage.hello());
-                if (result.isErr()) {
-                    return err(result.error);
+                let processHelloMessageResult = this.processHelloMessage(stellarMessage.hello());
+                if (processHelloMessageResult.isErr()) {
+                    return err(processHelloMessageResult.error);
                 }
                 this.handshakeState = HandshakeState.GOT_HELLO;
-                this.sendAuthMessage();
+
+                let result: Result<void, Error>;
+                if(this.remoteCalledUs) result = this.sendHello();
+                else result = this.sendAuthMessage();
+
+                if (result.isErr()){
+                   return err(result.error);
+                }
                 return ok(true);
             case MessageType.auth():
                 this.logger.debug('rcv auth msg',
-                    {'host': this.toNode.key});
-                this.completeHandshake();
+                    {'host': this.hostInfo()});
+                let completedHandshakeResult = this.completeHandshake();
+                if(completedHandshakeResult.isErr())
+                    return err(completedHandshakeResult.error);
                 return ok(true);
             case MessageType.transaction():
                 this.logger.debug('rcv transaction msg',
-                    {'host': this.toNode.key});
+                    {'host': this.hostInfo()});
                 return ok(true);
             default: // we push the message to the consumer
                 return ok(this.push(stellarMessage));
         }
     }
 
-    protected initiateHandShake(): Result<void, Error> {
+    protected sendHello(): Result<void, Error> {
         this.logger.debug("send HELLO",
-            {'host': this.toNode.key});
+            {'host': this.hostInfo()});
         let certResult = xdrMessageCreator.createAuthCert(this.connectionAuthentication);
         if (certResult.isErr())
             return err(certResult.error);
@@ -314,32 +331,35 @@ export default class Connection extends Duplex {
             return err(helloResult.error);
         }
 
-        let result = this.sendStellarMessage(
+        return this.sendStellarMessage(
             //@ts-ignore
             helloResult.value
         );
+    }
 
-        if (result.isErr()) {
-            return (err(result.error));
+    protected completeHandshake(): Result<void, Error> {
+        if(this.remoteCalledUs){
+            let authResult = this.sendAuthMessage();
+            if(authResult.isErr())
+                return err(authResult.error);
         }
+
+        this.logger.debug("Handshake Completed",
+            {'host': this.hostInfo()});
+        this.handshakeState = HandshakeState.COMPLETED
+        this.socket.setTimeout(30000);
+
+        this.emit("connect");
+        this.emit("ready");
 
         return ok(undefined);
     }
 
-    protected completeHandshake(): void {
-        this.logger.debug("Handshake Completed",
-            {'host': this.toNode.key});
-        this.handshakeState = HandshakeState.COMPLETED
-        this.socket.setTimeout(30000);
-        this.emit("connect");
-        this.emit("ready");
-    }
-
     public sendStellarMessage(message: StellarMessage): Result<void, Error> {
         this.logger.debug("Sending message of type: " + message.switch().name,
-            {'host': this.toNode.key});
+            {'host': this.hostInfo()});
         let authMsgResult = this.authenticateMessage(message);
-        if (this.handshakeState >= HandshakeState.GOT_HELLO)
+        if (message.switch() !== MessageType.hello() && message.switch() !== MessageType.errorMsg())
             this.increaseLocalSequenceByOne();
 
         if (authMsgResult.isErr())
@@ -347,25 +367,24 @@ export default class Connection extends Duplex {
 
         let result = this.writeMessageToSocket(this.socket, authMsgResult.value);
         if (result.isErr()){
-            this.logger.debug(result.error.message,
-                {'host': this.toNode.key});
             return err(result.error);
         }
 
         return ok(result.value);
     }
 
-    protected sendAuthMessage() {
+    protected sendAuthMessage(): Result<void, Error> {
         this.logger.debug('send auth msg',
-            {'host': this.toNode.key});
+            {'host': this.hostInfo()});
 
-        let result = this.sendStellarMessage(
-            xdrMessageCreator.createAuthMessage(),
+        let authMessageResult = xdrMessageCreator.createAuthMessage();
+        if(authMessageResult.isErr())
+            return err(authMessageResult.error);
+
+        return this.sendStellarMessage(
+            //@ts-ignore
+            authMessageResult.value
         );
-
-        if (result.isErr())
-            this.logger.debug('send auth msg failed',
-                {'host': this.toNode.key, error: result.error.message});
     }
 
     protected increaseLocalSequenceByOne() {
@@ -396,7 +415,7 @@ export default class Connection extends Duplex {
 
             return ok(authenticatedMessage);
         } catch (error) {
-            return err(error);
+            return err(new Error("authenticateMessage failed: " + error.message));
         }
     }
 
@@ -419,13 +438,18 @@ export default class Connection extends Duplex {
         if (!this.connectionAuthentication.verifyRemoteAuthCert(new Date(), hello.peerId().value(), hello.cert()))
             return err(new Error("Invalid auth cert"));
 
-        this.remoteNonce = hello.nonce();
-        this.remotePublicKeyECDH = hello.cert().pubkey().key();
-        this.toNode.updateFromHelloMessage(hello);
-        this.sendingMacKey = this.connectionAuthentication.getSendingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
-        this.receivingMacKey = this.connectionAuthentication.getReceivingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
+        try {
+            this.remoteNonce = hello.nonce();
+            this.remotePublicKeyECDH = hello.cert().pubkey().key();
+            this.toNode = new PeerNode(this.socket.remoteAddress!, this.socket.remotePort!);
+            this.toNode.updateFromHelloMessage(hello);
+            this.sendingMacKey = this.connectionAuthentication.getSendingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
+            this.receivingMacKey = this.connectionAuthentication.getReceivingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
+            return ok(undefined);
+        }catch (error){
+            return err(error);
+        }
 
-        return ok(undefined);
     }
 
     protected writeMessageToSocket(socket: net.Socket, message: xdr.AuthenticatedMessage): Result<void, Error> {
@@ -437,8 +461,8 @@ export default class Connection extends Duplex {
             return err(bufferResult.error);
         }
 
-        this.logger.debug('Writing msg to buffer: ' + bufferResult.value.toString('base64'), {'host': this.toNode.key});
-        if (!socket.write(bufferResult.value)) //todo: implement callback to notify when command was sent successfully.
+        this.logger.debug('Writing msg to buffer: ' + bufferResult.value.toString('base64'), {'host': this.hostInfo()});
+        if (!socket.write(bufferResult.value)) //todo backpressure
             return err(new Error("Could not write to socket"));
 
         return ok(undefined);
@@ -452,7 +476,7 @@ export default class Connection extends Duplex {
 
         if (this.readState === ReadState.Blocked) {//the consumer wants to read again
             this.logger.debug('ReadState unblocked by consumer',
-                {'host': this.toNode.key});
+                {'host': this.hostInfo()});
             this.readState = ReadState.ReadyForLength;
         }
         // Trigger a read but wait until the end of the event loop.

@@ -9,6 +9,7 @@ import {PeerNode} from "./peer-node";
 import {Logger} from "winston";
 import {ConnectionAuthentication} from "./connection/connection-authentication";
 import {Config, getConfig} from "./config";
+import ConnectionServer from "./connection-server";
 
 type nodeKey = string;
 
@@ -20,7 +21,7 @@ export class ConnectionManager {
 
     constructor(
         usePublicNetwork: boolean = true,//todo config
-        logger: Logger
+        logger?: Logger
     ) {
         this.config = getConfig();
 
@@ -82,14 +83,18 @@ export class ConnectionManager {
     connect(toNode: PeerNode) {
         let socket = new net.Socket();
 
-        let connection = new Connection(this.keyPair, toNode, socket, this.connectionAuthication, this.config, this.logger);
+        let connection = new Connection(this.keyPair, socket, this.connectionAuthication, this.config, this.logger);
 
         this.logger.info( 'Connect',
-            {'host': connection.toNode.key});
+            {'host': connection.toNode?.key});
 
-        connection.connect();
+        connection.connect(toNode);
 
         return connection;
+    }
+
+    createConnectionServer() {
+        return new ConnectionServer(this.keyPair, this.connectionAuthication, this.config, this.logger);
     }
 
     /*protected handleStellarMessage(stellarMessage: xdr.StellarMessage, connection: Connection) {

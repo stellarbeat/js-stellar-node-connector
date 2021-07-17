@@ -28,7 +28,7 @@ export default {
 
             return ok(Buffer.concat([lengthBuffer, xdrMessage]));
         } catch (error){
-            return err(error);
+            return err(new Error("ToXDR of " + message.value().message().switch().name + " failed: " + error.message));
         }
 
     },

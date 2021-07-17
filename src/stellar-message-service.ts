@@ -8,9 +8,6 @@ import {QuorumSet} from "@stellarbeat/js-stellar-domain";
 import {verifySignature} from "./crypto-helper";
 import ScpEnvelope = xdr.ScpEnvelope;
 
-/*
-Todo: worker in singleton class, and call from here. So we can verifyStatement instead of statementXDR
- */
 export function verifyStatementXDRSignature(statementXDR: Buffer, peerId: Buffer, signature: Buffer, network: Buffer): Result<boolean, Error> {
     try {
         let body = Buffer.concat([network, Buffer.from([0, 0, 0, 1]), statementXDR]);
