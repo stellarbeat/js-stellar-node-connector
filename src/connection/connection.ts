@@ -54,7 +54,6 @@ export default class Connection extends Duplex {
     protected sendingMacKey?: Buffer;
     protected receivingMacKey?: Buffer;
     protected lengthNextMessage: number = 0;
-    protected networkIDBuffer: Buffer;
     protected config: Config;
     protected processTransactions: boolean = false;
     protected reading: boolean = false;
@@ -63,7 +62,7 @@ export default class Connection extends Duplex {
     protected remoteCalledUs: boolean = true;
 
     //todo: dedicated connectionConfig
-    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication, networkIDBuffer: Buffer, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
+    constructor(keyPair: Keypair, toNode: PeerNode, socket: Socket, connectionAuth: ConnectionAuthentication, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
         super({objectMode: true});
         this.socket = socket;
         if(this.socket.readable)
@@ -71,7 +70,6 @@ export default class Connection extends Duplex {
         this.remoteCalledUs = remoteCalledUs;
         this.socket.setTimeout(2500);
         this.connectionAuthentication = connectionAuth;
-        this.networkIDBuffer = networkIDBuffer;
         this.config = config;
         this.keyPair = keyPair;
         this.localNonce = StellarBase.hash(BigNumber.random().toString());
@@ -304,7 +302,7 @@ export default class Connection extends Duplex {
             this.keyPair.xdrPublicKey(),
             this.localNonce,
             certResult.value,
-            this.networkIDBuffer,
+            this.connectionAuthentication.networkId,
             this.config.ledgerVersion,
             this.config.overlayVersion,
             this.config.overlayMinVersion,
@@ -337,7 +335,6 @@ export default class Connection extends Duplex {
         this.emit("ready");
     }
 
-    //todo handshakeMessage should be derived from state
     public sendStellarMessage(message: StellarMessage): Result<void, Error> {
         this.logger.debug("Sending message of type: " + message.switch().name,
             {'host': this.toNode.key});

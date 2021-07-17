@@ -3,15 +3,8 @@ const PeerNode = require("../lib").PeerNode;
 const ConnectionManager = require("../lib").ConnectionManager;
 const StellarBase = require('stellar-base');
 
-console.time("run");
 let connectionManager = new ConnectionManager(
-    true,
-    onHandshakeCompleted,
-    onPeersReceived,
-    onLoadTooHighReceived,
-    onSCPStatementReceivedCallback,
-    onQuorumSetReceived,
-    onNodeDisconnected
+    true
 );
 
 connect();
@@ -31,43 +24,23 @@ function connect() {
     } else {
         port = parseInt(port);
     }
-    connectionManager.connect(new PeerNode(ip, port));
-}
 
-function onSCPStatementReceivedCallback(scpStatement, toNode) {
-    let statement =SCPStatement.fromXdr(scpStatement);
-    //connectionManager.sendGetQuorumSet(toNode, Buffer.alloc(32));//Buffer.from(statement.value.pledges.quorumSetHash, 'base64'));
-
-    /*console.log(scpStatement.slotIndex);
-    console.log(scpStatement.nodeId);*/
-}
-
-function onHandshakeCompleted(node) {
-    console.log("[COMMAND]: connection established");
-    console.log(node.publicKey);
-    //connectionManager.sendGetScpStatus(node, 0);
-    /*connectionManager.pause(connection);
-    setTimeout(() => {
-        connectionManager.resume(connection, 10000);
-    }, 15000)*/
-}
-
-function onPeersReceived(peers, connection) {
-    console.log('[COMMAND]: peers received:');
-    /*peers.forEach(peer => {
-        console.log(JSON.stringify(peer));
-    });*/
-}
-
-function onLoadTooHighReceived(connection) {
-    console.log("[COMMAND]: Node load too high, exiting");
-}
-
-function onQuorumSetReceived(connection, quorumSet) {
-}
-
-function onNodeDisconnected(connection) {
-    console.log("[COMMAND]: Node disconnected, exiting");
-    //connectionManager.terminate();
-    //process.exit(-1);
+    let connection = connectionManager.connect(new PeerNode(ip, port));
+    connection
+        .on('connect', () => {
+            console.log('Connected to Stellar Node: ' + connection.toNode.key);
+        })
+        .on('data', (data) => {
+            console.log(data);
+        })
+        .on('error', (err) => {
+            console.log(err);
+        })
+        .on('close', () => {
+            console.log("closed connection");
+        })
+        .on('timeout', () => {
+            console.log("timeout");
+            connection.destroy();
+        });
 }

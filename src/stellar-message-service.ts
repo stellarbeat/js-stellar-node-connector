@@ -6,6 +6,7 @@ import {ok, err, Result} from 'neverthrow'
 import PeerAddress = xdr.PeerAddress;
 import {QuorumSet} from "@stellarbeat/js-stellar-domain";
 import {verifySignature} from "./crypto-helper";
+import ScpEnvelope = xdr.ScpEnvelope;
 
 /*
 Todo: worker in singleton class, and call from here. So we can verifyStatement instead of statementXDR
@@ -19,15 +20,24 @@ export function verifyStatementXDRSignature(statementXDR: Buffer, peerId: Buffer
     }
 }
 
+export function verifySCPEnvelopeSignature(scpEnvelope: ScpEnvelope, network: Buffer): Result<boolean, Error> {
+    return verifyStatementXDRSignature(
+        scpEnvelope.statement().toXDR(),
+        scpEnvelope.statement().nodeId().value(),
+        scpEnvelope.signature(),
+        network
+    );
+}
+
 export function getQuorumSetFromMessage(scpQuorumSetMessage: xdr.ScpQuorumSet): Result<QuorumSet, Error> {
-    try{
+    try {
         return ok(getQuorumSetFromMessageRecursive(scpQuorumSetMessage));
-    } catch (error){
+    } catch (error) {
         return err(error);
     }
 }
 
-function getQuorumSetFromMessageRecursive(scpQuorumSetMessage: xdr.ScpQuorumSet):QuorumSet{
+function getQuorumSetFromMessageRecursive(scpQuorumSetMessage: xdr.ScpQuorumSet): QuorumSet {
     let quorumSet = new QuorumSet(
         hash(scpQuorumSetMessage.toXDR()).toString('base64'),
         scpQuorumSetMessage.threshold()
@@ -38,8 +48,8 @@ function getQuorumSetFromMessageRecursive(scpQuorumSetMessage: xdr.ScpQuorumSet)
     });
 
     scpQuorumSetMessage.innerSets().forEach((innerQuorumSet: any) => {
-            quorumSet.innerQuorumSets.push(
-                getQuorumSetFromMessageRecursive(innerQuorumSet)
+        quorumSet.innerQuorumSets.push(
+            getQuorumSetFromMessageRecursive(innerQuorumSet)
         );
     });
 

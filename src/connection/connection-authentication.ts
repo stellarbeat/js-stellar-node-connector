@@ -15,7 +15,7 @@ interface AuthCert {
     signature: Buffer
 }
 
-export class ConnectionAuthentication { //todo: introduce 'fromNode'
+export class ConnectionAuthentication {
     secretKeyECDH: Curve25519SecretBuffer;
     publicKeyECDH: Curve25519PublicBuffer;
     weCalledRemoteSharedKeys: Map<string, Buffer> = new Map();
