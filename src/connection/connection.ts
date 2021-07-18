@@ -32,7 +32,8 @@ enum HandshakeState {
 }
 
 /**
- * Duplex stream that wraps a tcp socket and handles the handshake to a stellar core node and all authentication verification of overlay messages.
+ * Duplex stream that wraps a tcp socket and handles the handshake to a stellar core node and all authentication verification of overlay messages. It encapsulates incoming and outgoing connections to and from stellar nodes.
+ *
  * https://github.com/stellar/stellar-core/blob/9c3e67776449ae249aa811e99cbd6eee202bd2b6/src/xdr/Stellar-overlay.x#L219
  * It returns xdr.StellarMessages to the consumer.
  * It accepts xdr.StellarMessages when handshake is completed and wraps them in a correct AuthenticatedMessage before sending
@@ -64,7 +65,7 @@ export default class Connection extends Duplex {
     //todo: dedicated connectionConfig
     constructor(keyPair: Keypair, socket: Socket, connectionAuth: ConnectionAuthentication, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
         super({objectMode: true});
-        this.socket = socket;
+        this.socket = socket; //if we initiate, could we create the socket here?
         if(this.socket.readable)
             this.handshakeState = HandshakeState.CONNECTED;
         this.remoteCalledUs = remoteCalledUs;

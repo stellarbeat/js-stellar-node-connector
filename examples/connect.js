@@ -25,7 +25,7 @@ function connect() {
         port = parseInt(port);
     }
 
-    let connection = connectionManager.connect(new PeerNode(ip, port));
+    let connection = connectionManager.connect(ip, port);
     connection
         .on('connect', () => {
             console.log('Connected to Stellar Node: ' + connection.toNode.key);

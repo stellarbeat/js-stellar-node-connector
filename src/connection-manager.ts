@@ -9,20 +9,25 @@ import {PeerNode} from "./peer-node";
 import {Logger} from "winston";
 import {ConnectionAuthentication} from "./connection/connection-authentication";
 import {Config, getConfig} from "./config";
-import ConnectionServer from "./connection-server";
+import {EventEmitter} from "events";
+import {Server, Socket} from "net";
 
-type nodeKey = string;
-
-export class ConnectionManager {
+/**
+ * Supports two operations: connect to a node, and accept connections from other nodes.
+ * In both cases it returns Connection instances that produce and consume StellarMessages
+ */
+export class ConnectionManager extends EventEmitter{
     protected logger!: Logger;
     protected keyPair: Keypair;
-    protected connectionAuthication: ConnectionAuthentication;
+    protected connectionAuthentication: ConnectionAuthentication;
     protected config: Config;
+    protected server?: Server;
 
     constructor(
         usePublicNetwork: boolean = true,//todo config
         logger?: Logger
     ) {
+        super();
         this.config = getConfig();
 
         if (!logger) {
@@ -57,7 +62,7 @@ export class ConnectionManager {
         }
 
         //@ts-ignore
-        this.connectionAuthication = new ConnectionAuthentication(this.keyPair, networkId);
+        this.connectionAuthentication = new ConnectionAuthentication(this.keyPair, networkId);
     }
 
     setLogger(logger: any) {
@@ -80,21 +85,47 @@ export class ConnectionManager {
         });
     }
 
-    connect(toNode: PeerNode) {
+    /*
+    * Create a connection to a node
+     */
+    connect(host: string, port: number): Connection {
         let socket = new net.Socket();
 
-        let connection = new Connection(this.keyPair, socket, this.connectionAuthication, this.config, this.logger);
+        let connection = new Connection(this.keyPair, socket, this.connectionAuthentication, this.config, this.logger);
 
         this.logger.info( 'Connect',
             {'host': connection.toNode?.key});
 
-        connection.connect(toNode);
+        connection.connect(new PeerNode(host, port));//todo remove peernode dependency
 
         return connection;
     }
 
-    createConnectionServer() {
-        return new ConnectionServer(this.keyPair, this.connectionAuthication, this.config, this.logger);
+    /*
+    * Start accepting connections from other nodes.
+    * emits connection event with a Connection instance on a new incoming connection
+    */
+    acceptIncomingConnections(port?: number, host?: string) {
+        if(!this.server) {
+            this.server = new Server();
+            this.server.on("connection", (socket) => this.onIncomingConnection(socket));
+            this.server.on("error", err => this.emit("error", err));
+            this.server.on("close", () => this.emit("close"));
+            this.server.on("listening", () => this.emit("listening"));
+        }
+
+        if(!this.server.listening)
+            this.server.listen(port, host)
+    }
+
+    stopAcceptingIncomingConnections(){
+        if(this.server)
+            this.server.close();
+    }
+
+    protected onIncomingConnection(socket: Socket) {
+        let connection = new Connection(this.keyPair, socket, this.connectionAuthentication, this.config, this.logger, true);
+        this.emit("connection", connection);
     }
 
     /*protected handleStellarMessage(stellarMessage: xdr.StellarMessage, connection: Connection) {

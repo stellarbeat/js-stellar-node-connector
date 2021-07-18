@@ -4,25 +4,22 @@ import Connection from "../../src/connection/connection";
 import {xdr} from "stellar-base";
 import StellarMessage = xdr.StellarMessage;
 
-let server: ConnectionServer;
 let connectionManager: ConnectionManager;
 let connectionToServer: Connection;
 
 beforeAll(() => {
     connectionManager = new ConnectionManager(true);
-    server = connectionManager.createConnectionServer();
-    server.listen(11623, '127.0.0.1', undefined, () => {
-    });
-    connectionToServer = connectionManager.connect(new PeerNode('127.0.0.1', 11623));
+    connectionManager.acceptIncomingConnections(11623, '127.0.0.1');
+    connectionToServer = connectionManager.connect('127.0.0.1', 11623);
 })
 afterAll(() => {
-    server.close();
+    connectionManager.stopAcceptingIncomingConnections();
     connectionToServer.destroy();
 })
 
 test("connect", (done) => {
     let pingPongCounter = 0;
-    server.on("connection", (connection) => {
+    connectionManager.on("connection", (connection) => {
         connection.on("connect", () => {
             console.log("Fully connected to client");
         });
