@@ -1,5 +1,4 @@
 import {ConnectionManager, PeerNode} from "../../src";
-import ConnectionServer from "../../src/connection-server";
 import Connection from "../../src/connection/connection";
 import {xdr} from "stellar-base";
 import StellarMessage = xdr.StellarMessage;

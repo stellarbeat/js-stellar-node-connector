@@ -28,7 +28,7 @@ export class ConnectionManager extends EventEmitter{
         logger?: Logger
     ) {
         super();
-        this.config = getConfig();
+        this.config = getConfig(); //todo connectionOptions
 
         if (!logger) {
             this.initializeDefaultLogger();

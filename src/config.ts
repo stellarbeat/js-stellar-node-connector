@@ -5,11 +5,9 @@ export type Config = {
     overlayMinVersion: number,
     versionString: string,
     listeningPort: number,
-    socketTimeout: number,
     privateKey?: string
 }
 export function getConfig(): Config {
-    let socketTimeout = getNumberFromEnv('SOCKET_TIMEOUT', 5000);
     let ledgerVersion = getNumberFromEnv('LEDGER_VERSION', 17);
     let overlayVersion = getNumberFromEnv('OVERLAY_VERSION', 17);
     let overlayMinVersion = getNumberFromEnv('OVERLAY_MIN_VERSION', 16);
@@ -19,7 +17,6 @@ export function getConfig(): Config {
     let privateKey = process.env['PRIVATE_KEY'] ? process.env['LOG_LEVEL'] : undefined;
 
     return {
-        socketTimeout: socketTimeout,
         ledgerVersion: ledgerVersion,
         overlayMinVersion: overlayMinVersion,
         overlayVersion: overlayVersion,
