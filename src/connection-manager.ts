@@ -91,12 +91,12 @@ export class ConnectionManager extends EventEmitter{
     connect(host: string, port: number): Connection {
         let socket = new net.Socket();
 
-        let connection = new Connection(this.keyPair, socket, this.connectionAuthentication, this.config, this.logger);
+        let connection = new Connection(this.keyPair, socket, new PeerNode(host, port), this.connectionAuthentication, this.config, this.logger);
 
         this.logger.info( 'Connect',
             {'host': connection.toNode?.key});
 
-        connection.connect(new PeerNode(host, port));//todo remove peernode dependency
+        connection.connect();
 
         return connection;
     }
@@ -124,7 +124,7 @@ export class ConnectionManager extends EventEmitter{
     }
 
     protected onIncomingConnection(socket: Socket) {
-        let connection = new Connection(this.keyPair, socket, this.connectionAuthentication, this.config, this.logger, true);
+        let connection = new Connection(this.keyPair, socket, new PeerNode(socket.remoteAddress!, socket.remotePort!), this.connectionAuthentication, this.config, this.logger, true);
         this.emit("connection", connection);
     }
 

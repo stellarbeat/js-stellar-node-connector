@@ -2,12 +2,11 @@ import BigNumber from "bignumber.js";
 import {PeerNode} from "../peer-node"; //todo reduce dependency?
 import {Keypair, xdr} from "stellar-base";
 import {err, ok, Result} from "neverthrow";
-import * as net from 'net';
 import {Socket} from 'net';
 import {ConnectionAuthentication} from "./connection-authentication";
 import {createSHA256Hmac, verifyHmac} from "../crypto-helper";
 import {Duplex} from "stream";
-import {error, Logger} from "winston";
+import {Logger} from "winston";
 import xdrMessageCreator from "./handshake-message-creator";
 import {Config} from "../config";
 import xdrBufferConverter from "./xdr-buffer-converter";
@@ -42,7 +41,7 @@ enum HandshakeState {
  */
 export class Connection extends Duplex {
 
-    public toNode?: PeerNode;
+    public toNode: PeerNode;
     readonly connectionAuthentication: ConnectionAuthentication;
     protected keyPair: Keypair;
     protected remotePublicKeyECDH?: Buffer;
@@ -63,8 +62,9 @@ export class Connection extends Duplex {
     protected remoteCalledUs: boolean = true;
 
     //todo: dedicated connectionConfig
-    constructor(keyPair: Keypair, socket: Socket, connectionAuth: ConnectionAuthentication, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
+    constructor(keyPair: Keypair, socket: Socket, toNode: PeerNode, connectionAuth: ConnectionAuthentication, config: Config, logger: Logger, remoteCalledUs: boolean = false) {
         super({objectMode: true});
+        this.toNode = toNode;
         this.socket = socket; //if we initiate, could we create the socket here?
         if(this.socket.readable)
             this.handshakeState = HandshakeState.CONNECTED;
@@ -93,10 +93,9 @@ export class Connection extends Duplex {
         return this.socket.remoteAddress + ":"+ this.socket.remotePort + (this.remoteCalledUs ? "(callee)" : "(caller)");
     }
 
-    public connect(toNode: PeerNode) {
-        this.toNode = toNode;
+    public connect() {
         this.handshakeState = HandshakeState.CONNECTING;
-        this.socket.connect(toNode.port, toNode.ip);
+        this.socket.connect(this.toNode.port, this.toNode.ip);
     }
 
     public isConnected() {
@@ -177,7 +176,7 @@ export class Connection extends Duplex {
                 }
                 if(this.readState === ReadState.Blocked) {
                     //we don't process anymore messages because consumer cant handle it.
-                    // When our internal buffer reaches the highwatermark, the underlying tcp protocol will signal the sender that we can't handle the traffic.
+                    // When our internal buffer reaches the high watermark, the underlying tcp protocol will signal the sender that we can't handle the traffic.
                     this.logger.debug('Reading blocked',
                         {'host': this.hostInfo()});
                     this.reading = false;
