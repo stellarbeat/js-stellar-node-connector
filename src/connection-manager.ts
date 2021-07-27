@@ -1,7 +1,7 @@
 import {FastSigning, hash, Keypair, Networks, xdr} from "stellar-base";
 
 import * as net from 'net';
-import Connection from "./connection/connection";
+import {Connection} from "./connection/connection";
 import * as winston from "winston";
 
 require('dotenv').config();

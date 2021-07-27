@@ -7,7 +7,7 @@ import {Socket} from 'net';
 import {ConnectionAuthentication} from "./connection-authentication";
 import {createSHA256Hmac, verifyHmac} from "../crypto-helper";
 import {Duplex} from "stream";
-import {Logger} from "winston";
+import {error, Logger} from "winston";
 import xdrMessageCreator from "./handshake-message-creator";
 import {Config} from "../config";
 import xdrBufferConverter from "./xdr-buffer-converter";
@@ -40,7 +40,7 @@ enum HandshakeState {
  *
  * inspired by https://www.derpturkey.com/extending-tcp-socket-in-node-js/
  */
-export default class Connection extends Duplex {
+export class Connection extends Duplex {
 
     public toNode?: PeerNode;
     readonly connectionAuthentication: ConnectionAuthentication;
@@ -124,7 +124,7 @@ export default class Connection extends Duplex {
         if (result.isErr()){
             this.logger.error(result.error.message,
                 {'host': this.hostInfo()});
-            this.socket.destroy();
+            this.socket.destroy(result.error);
         }
     }
 
@@ -136,12 +136,13 @@ export default class Connection extends Duplex {
         // Because the same internal read buffer is processed (the running whilst loop will also loop over the new data),
         // we can safely ignore it.
         if (this.reading) {
-            this.logger.debug('Ignoring, already reading');
+            this.logger.debug('Ignoring, already reading',
+                {'host': this.hostInfo()});
             return;
         }
 
         this.reading = true;
-
+        //a socket is a duplex stream. It has a write buffer (when we write messages to the socket, to be sent to the peer). And it has a read buffer, data we have to read from the socket, data that is sent by the peer to us. If we don't read the data (or too slow), we will exceed the readableHighWatermark of the socket. This will make the socket stop receiving data or using tcp to signal to the sender that we want to receive the data slower.
         if (this.socket.readableLength >= this.socket.readableHighWaterMark)
             this.logger.debug('Socket buffer exceeding high watermark',
                 {'host': this.hostInfo()});
@@ -177,7 +178,8 @@ export default class Connection extends Duplex {
                 if(this.readState === ReadState.Blocked) {
                     //we don't process anymore messages because consumer cant handle it.
                     // When our internal buffer reaches the highwatermark, the underlying tcp protocol will signal the sender that we can't handle the traffic.
-                    this.logger.debug('Reading blocked');
+                    this.logger.debug('Reading blocked',
+                        {'host': this.hostInfo()});
                     this.reading = false;
                 }
 
@@ -189,10 +191,11 @@ export default class Connection extends Duplex {
             }, (error) => {//function gets called when we are no longer reading
                 if (error) {
                     this.logger.error(error.message, {'host': this.hostInfo()});
-                    this.socket.destroy();
+                    this.socket.destroy(error);
                 }
 
-                this.logger.debug('handled messages in chunk: ' + processedMessages);
+                this.logger.debug('handled messages in chunk: ' + processedMessages,
+                    {'host': this.hostInfo()});
             }
         );
     }
@@ -229,10 +232,10 @@ export default class Connection extends Duplex {
                 if(result.isErr())
                     return err(result.error);
                 if(!result.value){
-                    this.logger.debug('Consumer cannot handle load, blocked reading', {'host': this.hostInfo()});
+                    this.logger.debug('Consumer cannot handle load, stop reading from socket', {'host': this.hostInfo()});
                     this.readState = ReadState.Blocked;
                     return ok(false);
-                }//could not push message to consumer because of backpressure
+                }//our read buffer is full, meaning the consumer did not process the messages timely
             } catch (error) {
                 return err(error);
             }
@@ -272,7 +275,7 @@ export default class Connection extends Duplex {
         }
     }
 
-    //return true if handling was succesfull, false if consumer was overloaded, Error on error
+    //return true if handling was successful, false if consumer was overloaded, Error on error
     protected handleStellarMessage(stellarMessage: StellarMessage): Result<boolean, Error> {
         switch (stellarMessage.switch()) {
             case MessageType.hello():
@@ -304,7 +307,7 @@ export default class Connection extends Duplex {
                 this.logger.debug('rcv transaction msg',
                     {'host': this.hostInfo()});
                 return ok(true);
-            default: // we push the message to the consumer
+            default: // we push the message to our readable buffer
                 return ok(this.push(stellarMessage));
         }
     }
@@ -332,10 +335,12 @@ export default class Connection extends Duplex {
             return err(helloResult.error);
         }
 
-        return this.sendStellarMessage(
+        this.write(
             //@ts-ignore
             helloResult.value
         );
+
+        return ok(undefined);
     }
 
     protected completeHandshake(): Result<void, Error> {
@@ -356,22 +361,12 @@ export default class Connection extends Duplex {
         return ok(undefined);
     }
 
-    public sendStellarMessage(message: StellarMessage): Result<void, Error> {
-        this.logger.debug("Sending message of type: " + message.switch().name,
-            {'host': this.hostInfo()});
-        let authMsgResult = this.authenticateMessage(message);
-        if (message.switch() !== MessageType.hello() && message.switch() !== MessageType.errorMsg())
-            this.increaseLocalSequenceByOne();
-
-        if (authMsgResult.isErr())
-            return err(authMsgResult.error);
-
-        let result = this.writeMessageToSocket(this.socket, authMsgResult.value);
-        if (result.isErr()){
-            return err(result.error);
-        }
-
-        return ok(result.value);
+    /**
+    * Convenience method that encapsulates write. Pass callback that will be invoked when message is successfully sent.
+     * Returns: <boolean> false if the stream wishes for the calling code to wait for the 'drain' event to be emitted before continuing to write additional data; otherwise true.
+     */
+    public sendStellarMessage(message: StellarMessage, cb?: (error: Error | null | undefined) => void): boolean {
+        return this.write(message, cb);
     }
 
     protected sendAuthMessage(): Result<void, Error> {
@@ -382,10 +377,11 @@ export default class Connection extends Duplex {
         if(authMessageResult.isErr())
             return err(authMessageResult.error);
 
-        return this.sendStellarMessage(
-            //@ts-ignore
+        this.write(
             authMessageResult.value
         );
+
+        return ok(undefined);
     }
 
     protected increaseLocalSequenceByOne() {
@@ -413,6 +409,9 @@ export default class Connection extends Duplex {
 
             let authenticatedMessage = new StellarBase.xdr.AuthenticatedMessage(0);
             authenticatedMessage.set(0, xdrAuthenticatedMessageV1);
+
+            if (message.switch() !== MessageType.hello() && message.switch() !== MessageType.errorMsg())
+                this.increaseLocalSequenceByOne();
 
             return ok(authenticatedMessage);
         } catch (error) {
@@ -443,7 +442,7 @@ export default class Connection extends Duplex {
             this.remoteNonce = hello.nonce();
             this.remotePublicKeyECDH = hello.cert().pubkey().key();
             this.toNode = new PeerNode(this.socket.remoteAddress!, this.socket.remotePort!);
-            this.toNode.updateFromHelloMessage(hello);
+            this.toNode.updateFromHelloMessage(hello); //todo: send this information with 'connect event'
             this.sendingMacKey = this.connectionAuthentication.getSendingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
             this.receivingMacKey = this.connectionAuthentication.getReceivingMacKey(this.localNonce, this.remoteNonce, this.remotePublicKeyECDH, !this.remoteCalledUs);
             return ok(undefined);
@@ -453,23 +452,6 @@ export default class Connection extends Duplex {
 
     }
 
-    protected writeMessageToSocket(socket: net.Socket, message: xdr.AuthenticatedMessage): Result<void, Error> {
-        if (!socket.writable)
-            return err(new Error("Socket not writable"));
-
-        let bufferResult = xdrBufferConverter.getXdrBufferFromMessage(message);
-        if (bufferResult.isErr()) {
-            return err(bufferResult.error);
-        }
-
-        this.logger.debug('Writing msg to buffer: ' + bufferResult.value.toString('base64'), {'host': this.hostInfo()});
-        if (!socket.write(bufferResult.value)) //todo backpressure
-            return err(new Error("Could not write to socket"));
-
-        return ok(undefined);
-    }
-
-    //socket methods
     public _read() {
         if (this.handshakeState !== HandshakeState.COMPLETED) {
             return;
@@ -488,10 +470,22 @@ export default class Connection extends Duplex {
         setImmediate(() => this.onReadable());
     }
 
-    public _write(message: StellarMessage, encoding: string, cb: (err: Error) => void) {
-        let result = this.sendStellarMessage(message);
-        if(result.isErr())
-            cb(result.error);
+    public _write(message: StellarMessage, encoding: string, callback: (error?: Error | null) => void):void {
+        let authenticatedMessageResult = this.authenticateMessage(message);
+        if(authenticatedMessageResult.isErr())
+            return callback(authenticatedMessageResult.error);
+
+        let bufferResult = xdrBufferConverter.getXdrBufferFromMessage(authenticatedMessageResult.value);
+        if (bufferResult.isErr()) {
+            return callback(bufferResult.error);
+        }
+
+        this.logger.debug('Writing msg to socket: ' + bufferResult.value.toString('base64'), {'host': this.hostInfo()});
+        if (!this.socket.write(bufferResult.value)) {
+            this.socket.once('drain', callback); //respecting backpressure
+        } else {
+            process.nextTick(callback);
+        }
     }
 
     _final(cb: any) {

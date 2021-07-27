@@ -1,10 +1,10 @@
 export type Config = {
     logLevel: string,
-    ledgerVersion: number,
-    overlayVersion: number,
-    overlayMinVersion: number,
-    versionString: string,
-    listeningPort: number,
+    ledgerVersion: number, //todo: connectionOptions (should be passed to connect method)
+    overlayVersion: number, //todo: connectionOptions (should be passed to connect method)
+    overlayMinVersion: number, //todo: connectionOptions (should be passed to connect method)
+    versionString: string, //todo: connectionOptions (should be passed to connect method)
+    listeningPort: number, //todo: handle better. incoming vs outgoing. now incorrectly handled in create hello in incoming connection.
     privateKey?: string
 }
 export function getConfig(): Config {
