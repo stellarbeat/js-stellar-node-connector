@@ -1,10 +1,12 @@
 const SCPStatement = require("../lib").SCPStatement;
 const PeerNode = require("../lib").PeerNode;
 const ConnectionManager = require("../lib").ConnectionManager;
+const getConfigFromEnv = require("../lib").getConfigFromEnv;
 const StellarBase = require('stellar-base');
 
 let connectionManager = new ConnectionManager(
-    true
+    true,
+    getConfigFromEnv()
 );
 
 connect();

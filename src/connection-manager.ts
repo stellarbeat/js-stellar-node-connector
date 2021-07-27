@@ -5,10 +5,9 @@ import {Connection} from "./connection/connection";
 import * as winston from "winston";
 
 require('dotenv').config();
-import {PeerNode} from "./peer-node";
 import {Logger} from "winston";
 import {ConnectionAuthentication} from "./connection/connection-authentication";
-import {Config, getConfig} from "./config";
+import {Config} from "./config";
 import {EventEmitter} from "events";
 import {Server, Socket} from "net";
 
@@ -24,11 +23,12 @@ export class ConnectionManager extends EventEmitter{
     protected server?: Server;
 
     constructor(
-        usePublicNetwork: boolean = true,//todo config
+        usePublicNetwork: boolean = true,
+        config: Config,
         logger?: Logger
     ) {
         super();
-        this.config = getConfig(); //todo connectionOptions
+        this.config = config;
 
         if (!logger) {
             this.initializeDefaultLogger();
@@ -73,7 +73,7 @@ export class ConnectionManager extends EventEmitter{
        // this.logger = require('pino')();
         //return;//todo: winston is creating blocking issues
         this.logger = winston.createLogger({
-            level: this.config.logLevel,
+            level: process.env.LOG_LEVEL ? process.env.LOG_LEVEL : 'debug',
             transports: [
                 new winston.transports.Console({
                     silent: false
@@ -88,10 +88,20 @@ export class ConnectionManager extends EventEmitter{
     /*
     * Create a connection to a node
      */
-    connect(host: string, port: number): Connection {
+    connect(ip: string, port: number): Connection {
         let socket = new net.Socket();
 
-        let connection = new Connection(this.keyPair, socket, new PeerNode(host, port), this.connectionAuthentication, this.config, this.logger);
+        let connection = new Connection({
+            ip: ip,
+            port: port,
+            keyPair: this.keyPair,
+            ledgerVersion: this.config.ledgerVersion,
+            overlayVersion: this.config.overlayVersion,
+            overlayMinVersion: this.config.overlayMinVersion,
+            versionString: this.config.versionString,
+            listeningPort: this.config.listeningPort,
+            remoteCalledUs: false,
+        }, socket, this.connectionAuthentication, this.logger);
 
         this.logger.info( 'Connect',
             {'host': connection.toNode?.key});
@@ -124,7 +134,17 @@ export class ConnectionManager extends EventEmitter{
     }
 
     protected onIncomingConnection(socket: Socket) {
-        let connection = new Connection(this.keyPair, socket, new PeerNode(socket.remoteAddress!, socket.remotePort!), this.connectionAuthentication, this.config, this.logger, true);
+        let connection = new Connection({
+            ip: socket.remoteAddress!,
+            port: socket.remotePort!,
+            keyPair: this.keyPair,
+            ledgerVersion: this.config.ledgerVersion,
+            overlayVersion: this.config.overlayVersion,
+            overlayMinVersion: this.config.overlayMinVersion,
+            versionString: this.config.versionString,
+            listeningPort: this.config.listeningPort,
+            remoteCalledUs: true,
+        }, socket, this.connectionAuthentication, this.logger);
         this.emit("connection", connection);
     }
 

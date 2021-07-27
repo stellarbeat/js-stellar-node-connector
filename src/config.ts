@@ -1,5 +1,4 @@
 export type Config = {
-    logLevel: string,
     ledgerVersion: number, //todo: connectionOptions (should be passed to connect method)
     overlayVersion: number, //todo: connectionOptions (should be passed to connect method)
     overlayMinVersion: number, //todo: connectionOptions (should be passed to connect method)
@@ -7,13 +6,13 @@ export type Config = {
     listeningPort: number, //todo: handle better. incoming vs outgoing. now incorrectly handled in create hello in incoming connection.
     privateKey?: string
 }
-export function getConfig(): Config {
+
+export function getConfigFromEnv(): Config {
     let ledgerVersion = getNumberFromEnv('LEDGER_VERSION', 17);
     let overlayVersion = getNumberFromEnv('OVERLAY_VERSION', 17);
     let overlayMinVersion = getNumberFromEnv('OVERLAY_MIN_VERSION', 16);
     let versionString = process.env['VERSION_STRING'] ? process.env['VERSION_STRING'] : 'sb';
     let listeningPort = getNumberFromEnv('LISTENING_PORT', 11625);
-    let logLevel = process.env['LOG_LEVEL'] ? process.env['LOG_LEVEL'] : 'debug';
     let privateKey = process.env['PRIVATE_KEY'] ? process.env['LOG_LEVEL'] : undefined;
 
     return {
@@ -21,7 +20,6 @@ export function getConfig(): Config {
         overlayMinVersion: overlayMinVersion,
         overlayVersion: overlayVersion,
         listeningPort: listeningPort,
-        logLevel: logLevel,
         versionString: versionString,
         privateKey: privateKey
     }
