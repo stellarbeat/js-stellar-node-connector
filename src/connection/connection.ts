@@ -15,6 +15,7 @@ import {AuthenticatedMessageV0, parseAuthenticatedMessageXDR} from "./xdr-messag
 const StellarBase = require('stellar-base');
 import StellarMessage = xdr.StellarMessage;
 import MessageType = xdr.MessageType;
+import PublicKey = xdr.PublicKey;
 
 enum ReadState {
     ReadyForLength,
@@ -221,7 +222,7 @@ export class Connection extends Duplex {
     protected processNextMessage(): Result<boolean, Error> {
         //If size bytes are not available to be read, null will be returned unless the stream has ended, in which case all of the data remaining in the internal buffer will be returned.
         let data = this.socket.read(this.lengthNextMessage);
-        if (!data) {
+        if (!data || data.length !== this.lengthNextMessage) {
             this.logger.debug('Not enough data left in buffer',
                 {'host': this.remoteHostInfo()});
             return ok(false);
@@ -268,9 +269,14 @@ export class Connection extends Duplex {
         }
 
         if (messageType !== MessageType.transaction().value) {//we ignore transaction msg for the moment
-            if (!verifyHmac(authenticatedMessageV0XDR.macXDR, this.receivingMacKey!, body)) {
-                return err(new Error('Invalid hmac'));
+            try{
+                if (!verifyHmac(authenticatedMessageV0XDR.macXDR, this.receivingMacKey!, body)) {
+                    return err(new Error('Invalid hmac'));
+                }
+            }catch (error){
+                return err(error);
             }
+
         }
 
         return ok(undefined);
@@ -492,7 +498,6 @@ export class Connection extends Duplex {
         let authenticatedMessageResult = this.authenticateMessage(message);
         if(authenticatedMessageResult.isErr())
             return callback(authenticatedMessageResult.error);
-
         let bufferResult = xdrBufferConverter.getXdrBufferFromMessage(authenticatedMessageResult.value);
         if (bufferResult.isErr()) {
             return callback(bufferResult.error);

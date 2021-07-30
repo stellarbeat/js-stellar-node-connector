@@ -17,6 +17,10 @@ export function verifyStatementXDRSignature(statementXDR: Buffer, peerId: Buffer
     }
 }
 
+export function getPublicKeyStringFromBuffer(buffer: Buffer){
+    return StrKey.encodeEd25519PublicKey(buffer).toString();
+}
+
 export function verifySCPEnvelopeSignature(scpEnvelope: ScpEnvelope, network: Buffer): Result<boolean, Error> {
     return verifyStatementXDRSignature(
         scpEnvelope.statement().toXDR(),
