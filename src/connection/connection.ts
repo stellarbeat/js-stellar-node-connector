@@ -110,7 +110,7 @@ export class Connection extends Duplex {
     }
     
     public remoteHostInfo(){
-        return this.socket.remoteAddress + ":"+ this.socket.remotePort + (this.remoteCalledUs ? "(callee)" : "(caller)");
+        return this.toNode.ip + ":"+ this.toNode.port + (this.remoteCalledUs ? "(callee)" : "(caller)");
     }
 
     public connect() {
@@ -203,10 +203,11 @@ export class Connection extends Duplex {
                 }
 
                 if (processError || !this.reading) {
-                    done(processError);
-                } else {
-                    setTimeout(() => done(null), 0);//there is data left, but we want to give other sockets a go in the event loop
-                }
+                    done(processError);//end the loop
+                } else if(processedMessages % 10 === 0) {//if ten messages are sequentially processed, we give control back to event loop
+                    setTimeout(() => done(null), 0);//other sockets will be able to process messages
+                } else
+                    done(null);//another iteration
             }, (error) => {//function gets called when we are no longer reading
                 if (error) {
                     this.logger.error(error.message, {'host': this.remoteHostInfo()});
@@ -495,6 +496,8 @@ export class Connection extends Duplex {
     }
 
     public _write(message: StellarMessage, encoding: string, callback: (error?: Error | null) => void):void {
+        if(!this.writable)
+            return callback(new Error("Trying to write to socket that is not writable"));
         let authenticatedMessageResult = this.authenticateMessage(message);
         if(authenticatedMessageResult.isErr())
             return callback(authenticatedMessageResult.error);
