@@ -496,8 +496,6 @@ export class Connection extends Duplex {
     }
 
     public _write(message: StellarMessage, encoding: string, callback: (error?: Error | null) => void):void {
-        if(!this.writable)
-            return callback(new Error("Trying to write to socket that is not writable"));
         let authenticatedMessageResult = this.authenticateMessage(message);
         if(authenticatedMessageResult.isErr())
             return callback(authenticatedMessageResult.error);
