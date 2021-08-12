@@ -2,21 +2,20 @@ import {FastSigning, hash, Keypair, Networks, xdr} from "stellar-base";
 
 import * as net from 'net';
 import {Connection} from "./connection/connection";
-import * as winston from "winston";
 
 require('dotenv').config();
-import {Logger} from "winston";
 import {ConnectionAuthentication} from "./connection/connection-authentication";
 import {Config} from "./config";
 import {EventEmitter} from "events";
 import {Server, Socket} from "net";
+import * as P from "pino";
 
 /**
  * Supports two operations: connect to a node, and accept connections from other nodes.
  * In both cases it returns Connection instances that produce and consume StellarMessages
  */
 export class ConnectionManager extends EventEmitter{
-    protected logger!: Logger;
+    protected logger!: P.Logger;
     protected keyPair: Keypair;
     protected connectionAuthentication: ConnectionAuthentication;
     protected config: Config;
@@ -25,16 +24,16 @@ export class ConnectionManager extends EventEmitter{
     constructor(
         usePublicNetwork: boolean = true,
         config: Config,
-        logger?: Logger
+        logger?: P.Logger
     ) {
         super();
         this.config = config;
 
         if (!logger) {
-            this.initializeDefaultLogger();
-        } else {
-            this.logger = logger.child({app: 'Connector'});
+            logger = this.initializeDefaultLogger();
         }
+
+        this.logger = logger.child({app: 'Connector'});
 
         if (this.config.privateKey) {
             try {
@@ -57,8 +56,7 @@ export class ConnectionManager extends EventEmitter{
         }
 
         if (!FastSigning) {
-            this.logger.debug('warning', 'FastSigning not enabled',
-                {'app': 'Connector'});
+            this.logger.debug('warning', 'FastSigning not enabled');
         }
 
         //@ts-ignore
@@ -69,19 +67,10 @@ export class ConnectionManager extends EventEmitter{
         this.logger = logger;
     }
 
-    protected initializeDefaultLogger() {
-       // this.logger = require('pino')();
-        //return;//todo: winston is creating blocking issues
-        this.logger = winston.createLogger({
-            level: process.env.LOG_LEVEL ? process.env.LOG_LEVEL : 'debug',
-            transports: [
-                new winston.transports.Console({
-                    silent: false
-                })
-            ],
-            defaultMeta: {
-                app: 'Connector'
-            }
+    protected initializeDefaultLogger(): P.Logger {
+        return P({
+            level: process.env.LOG_LEVEL || 'info',
+            base: undefined,
         });
     }
 
@@ -101,10 +90,11 @@ export class ConnectionManager extends EventEmitter{
             versionString: this.config.versionString,
             listeningPort: this.config.listeningPort,
             remoteCalledUs: false,
+            receiveTransactionMessages: this.config.receiveTransactionMessages,
+            receiveSCPMessages: this.config.receiveSCPMessages
         }, socket, this.connectionAuthentication, this.logger);
 
-        this.logger.info( 'Connect',
-            {'host': connection.toNode?.key});
+        this.logger.debug({'peer': connection.peer?.key}, 'Connect');
 
         connection.connect();
 
@@ -116,7 +106,7 @@ export class ConnectionManager extends EventEmitter{
     * emits connection event with a Connection instance on a new incoming connection
     */
     acceptIncomingConnections(port?: number, host?: string) {
-        if(!this.server) {
+        if (!this.server) {
             this.server = new Server();
             this.server.on("connection", (socket) => this.onIncomingConnection(socket));
             this.server.on("error", err => this.emit("error", err));
@@ -124,12 +114,12 @@ export class ConnectionManager extends EventEmitter{
             this.server.on("listening", () => this.emit("listening"));
         }
 
-        if(!this.server.listening)
+        if (!this.server.listening)
             this.server.listen(port, host)
     }
 
-    stopAcceptingIncomingConnections(){
-        if(this.server)
+    stopAcceptingIncomingConnections() {
+        if (this.server)
             this.server.close();
     }
 
@@ -144,6 +134,8 @@ export class ConnectionManager extends EventEmitter{
             versionString: this.config.versionString,
             listeningPort: this.config.listeningPort,
             remoteCalledUs: true,
+            receiveTransactionMessages: this.config.receiveTransactionMessages,
+            receiveSCPMessages: this.config.receiveSCPMessages
         }, socket, this.connectionAuthentication, this.logger);
         this.emit("connection", connection);
     }
@@ -154,11 +146,11 @@ export class ConnectionManager extends EventEmitter{
                 //we handle a scp quorum set message immediately. However this could be better handled with 'dont have' message parsing.
                 case MessageType.scpQuorumset():
                     this.logger.debug( 'rcv scpQuorumSet msg',
-                        {'host': connection.toNode.key});
+                        {'peer': connection.toNode.key});
                     let quorumSetResult = getQuorumSetFromMessage(stellarMessage.qSet());
                     if(quorumSetResult.isErr()) {
                         this.logger.error('Invalid scpQuorumSet msg',
-                            {'host': connection.toNode.key, error: quorumSetResult.error.message});
+                            {'peer': connection.toNode.key, error: quorumSetResult.error.message});
                         connection.destroy();
                     } else {
                         this._onQuorumSetReceivedCallback(quorumSetResult.value, connection.toNode);
@@ -168,17 +160,17 @@ export class ConnectionManager extends EventEmitter{
                 case MessageType.errorMsg():
                     if (stellarMessage.error().code() === xdr.ErrorCode.errLoad()) {
                         this.logger.info('info', 'rcv high load msg',
-                            {'host': connection.toNode.key});
+                            {'peer': connection.toNode.key});
                     } else {
                         this.logger.info('Error msg received',
-                            {'host': connection.toNode.key, error: stellarMessage.error().msg().toString()});
+                            {'peer': connection.toNode.key, error: stellarMessage.error().msg().toString()});
                     }//todo: return error
                     break;
 
                 //queued worker pool messages
                 case MessageType.peers():
                     this.logger.debug( 'rcv peer msg',
-                        {'host': connection.toNode.key});
+                        {'peer': connection.toNode.key});
                     this._onPeersReceivedCallback(stellarMessage.peers().map(peer => {
                         return new PeerNode(
                             getIpFromPeerAddress(peer),
@@ -193,7 +185,7 @@ export class ConnectionManager extends EventEmitter{
                     break;
 
                 case MessageType.scpMessage():
-                    this.logger.debug('rcv scp msg', {'host': connection.toNode.key});
+                    this.logger.debug('rcv scp msg', {'peer': connection.toNode.key});
                     let signature = stellarMessage.envelope().signature().toString();
                     if (this.processedEnvelopes.has(signature)) {
                         return;
@@ -213,24 +205,24 @@ export class ConnectionManager extends EventEmitter{
                                     return this._onSCPStatementReceivedCallback(stellarMessage.envelope().statement(), connection.toNode);
                                 else {
                                     this.logger.error('Invalid signature',
-                                        {'host': connection.toNode.key});
+                                        {'peer': connection.toNode.key});
                                 }
                             }
                         ).catch(error => {
                         this.logger.error('Error parsing scp msg',
-                            {'host': connection.toNode.key, 'error': error.message});
+                            {'peer': connection.toNode.key, 'error': error.message});
                     });
 
                     break;
 
                 case MessageType.transaction()://transaction
                     this.logger.debug( 'rcv transaction msg',
-                        {'host': connection.toNode.key});
+                        {'peer': connection.toNode.key});
                     break;
 
                 default:
                     this.logger.debug( 'rcv unsupported msg type' + stellarMessage.switch().name,
-                        {'host': connection.toNode.key});
+                        {'peer': connection.toNode.key});
             }
         } catch
             (e) {

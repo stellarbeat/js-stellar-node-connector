@@ -1,10 +1,14 @@
+import * as yn from 'yn';
+
 export type Config = {
     ledgerVersion: number, //todo: connectionOptions (should be passed to connect method)
     overlayVersion: number, //todo: connectionOptions (should be passed to connect method)
     overlayMinVersion: number, //todo: connectionOptions (should be passed to connect method)
     versionString: string, //todo: connectionOptions (should be passed to connect method)
     listeningPort: number, //todo: handle better. incoming vs outgoing. now incorrectly handled in create hello in incoming connection.
-    privateKey?: string
+    privateKey?: string,
+    receiveTransactionMessages: boolean,
+    receiveSCPMessages: boolean
 }
 
 export function getConfigFromEnv(): Config {
@@ -13,7 +17,9 @@ export function getConfigFromEnv(): Config {
     let overlayMinVersion = getNumberFromEnv('OVERLAY_MIN_VERSION', 16);
     let versionString = process.env['VERSION_STRING'] ? process.env['VERSION_STRING'] : 'sb';
     let listeningPort = getNumberFromEnv('LISTENING_PORT', 11625);
-    let privateKey = process.env['PRIVATE_KEY'] ? process.env['LOG_LEVEL'] : undefined;
+    let privateKey = process.env['PRIVATE_KEY'] ? process.env['PRIVATE_KEY'] : undefined;
+    let receiveTransactionMessages = yn(process.env['RECEIVE_TRANSACTION_MSG']);
+    let receiveSCPMessages = yn(process.env['RECEIVE_SCP_MSG']);
 
     return {
         ledgerVersion: ledgerVersion,
@@ -21,7 +27,9 @@ export function getConfigFromEnv(): Config {
         overlayVersion: overlayVersion,
         listeningPort: listeningPort,
         versionString: versionString,
-        privateKey: privateKey
+        privateKey: privateKey,
+        receiveSCPMessages: receiveSCPMessages !== undefined ? receiveSCPMessages : true,
+        receiveTransactionMessages: receiveTransactionMessages !== undefined ? receiveTransactionMessages : true
     }
 }
 

@@ -1,8 +1,5 @@
-const SCPStatement = require("../lib").SCPStatement;
-const PeerNode = require("../lib").PeerNode;
 const ConnectionManager = require("../lib").ConnectionManager;
 const getConfigFromEnv = require("../lib").getConfigFromEnv;
-const StellarBase = require('stellar-base');
 
 let connectionManager = new ConnectionManager(
     true,
@@ -19,21 +16,20 @@ function connect() {
     }
 
     let ip = process.argv[2];
+    let port = 11625;
 
-    let port = process.argv[3];
-    if (!port) {
-        port = 11625;
-    } else {
-        port = parseInt(port);
+    let portArg = process.argv[3];
+    if (portArg) {
+        port = parseInt(portArg);
     }
 
     let connection = connectionManager.connect(ip, port);
     connection
-        .on('connect', () => {
-            console.log('Connected to Stellar Node: ' + connection.toNode.key);
+        .on('connect', (peer) => {
+            console.log('Connected to Stellar Node: ' + peer.key);
         })
         .on('data', (data) => {
-            console.log(data);
+            console.log(data.switch().name);
         })
         .on('error', (err) => {
             console.log(err);

@@ -1,5 +1,5 @@
 import {Transform, TransformCallback} from "stream";
-import LRUCache = require("lru-cache");
+import * as LRUCache from "lru-cache";
 import {hash, Networks, xdr} from "stellar-base";
 import StellarMessage = xdr.StellarMessage;
 import MessageType = xdr.MessageType;
@@ -22,10 +22,6 @@ export class UniqueSCPStatementTransform extends Transform {
         if(stellarMessage.switch() !== MessageType.scpMessage())
             return next();
 
-        //todo: if we use worker pool and 'async' next call, will the internal buffer fill up too fast and block reading?
-        //@ts-ignore;
-        console.log(verifySCPEnvelopeSignature(stellarMessage.envelope(), hash(Networks.PUBLIC)));
-
         if (this.cache.has(stellarMessage.envelope().signature().toString())) {
             console.log("cache hit");
             return next();
@@ -33,6 +29,11 @@ export class UniqueSCPStatementTransform extends Transform {
 
         this.cache.set(stellarMessage.envelope().signature().toString(), 1);
 
-        return next(null, stellarMessage.envelope().statement().toXDR('base64'));
+        //todo: if we use worker pool and 'async' next call, will the internal buffer fill up too fast and block reading?
+        //@ts-ignore
+        if(verifySCPEnvelopeSignature(stellarMessage.envelope(), hash(Networks.PUBLIC)))
+            return next(null, stellarMessage.envelope().statement().toXDR('base64'));
+
+        return next();
     }
 }

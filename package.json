@@ -15,8 +15,10 @@
   "main": "lib/index.js",
   "author": "pieterjan84@github",
   "license": "MIT",
+  "node": "^12.20.0 || ^14.13.1 || >=16.0.0",
   "dependencies": {
     "@types/pino": "^6.3.9",
+    "@types/yn": "^3.1.0",
     "async": "^3.2.0",
     "blocked-at": "^1.2.0",
     "dotenv": "^6.1.0",
@@ -25,10 +27,11 @@
     "neverthrow": "^4.2.2",
     "pino": "^6.12.0",
     "sodium-native": "^3.2.1",
-    "stellar-base": "5.3.0",
+    "stellar-base": "^5.3.2",
     "turbo-net": "^1.4.0",
     "winston": "^3.3.3",
-    "workerpool": "^6.1.5"
+    "workerpool": "^6.1.5",
+    "yn": "^4.0.0"
   },
   "peerDependencies": {
     "@stellarbeat/js-stellar-domain": "^2.23.1"
