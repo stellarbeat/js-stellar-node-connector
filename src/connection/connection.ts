@@ -78,7 +78,6 @@ export class Connection extends Duplex {
     protected receiveTransactionMessages: boolean = true;
     protected receiveSCPMessages: boolean = true;
 
-    //todo: dedicated connectionConfig
     constructor(connectionOptions: ConnectionOptions, socket: Socket, connectionAuth: ConnectionAuthentication, logger: P.Logger) {
         super({objectMode: true});
         this.peer = new PeerNode(connectionOptions.ip, connectionOptions.port);
@@ -236,18 +235,23 @@ export class Connection extends Duplex {
         this.logger.trace({'peer': this.peerInfo()}, 'Rcv msg of type: ' + messageType + ' with seq: ' + authenticatedMessageV0XDR.sequenceNumberXDR.readInt32BE(4));
         //@ts-ignore
         this.logger.debug({'peer': this.peerInfo()}, "Rcv " + MessageType.fromValue(messageType).name);
+
+        if (messageType === MessageType.transaction().value && !this.receiveTransactionMessages){
+            this.increaseRemoteSequenceByOne();
+            return ok(true);
+        }
+
+        if (messageType === MessageType.scpMessage().value && !this.receiveSCPMessages){
+            this.increaseRemoteSequenceByOne();
+            return ok(true);
+        }
+
         if (this.handshakeState >= HandshakeState.GOT_HELLO && messageType !== MessageType.errorMsg().value) {
             let result = this.verifyAuthentication(authenticatedMessageV0XDR, messageType, data.slice(4, data.length - 32));
             this.increaseRemoteSequenceByOne();
             if (result.isErr())
                 return err(result.error);
         }
-
-        if (messageType === MessageType.transaction().value && !this.receiveTransactionMessages)
-            return ok(true);
-
-        if (messageType === MessageType.scpMessage().value && !this.receiveSCPMessages)
-            return ok(true);
 
         try {
             let result = this.handleStellarMessage(StellarMessage.fromXDR(data.slice(12, data.length - 32)));
@@ -272,15 +276,12 @@ export class Connection extends Duplex {
             return err(new Error('Invalid sequence number'));
         }
 
-        if (messageType !== MessageType.transaction().value) {//we ignore transaction msg for the moment
-            try {
-                if (!verifyHmac(authenticatedMessageV0XDR.macXDR, this.receivingMacKey!, body)) {
-                    return err(new Error('Invalid hmac'));
-                }
-            } catch (error) {
-                return err(error);
+        try {
+            if (!verifyHmac(authenticatedMessageV0XDR.macXDR, this.receivingMacKey!, body)) {
+                return err(new Error('Invalid hmac'));
             }
-
+        } catch (error) {
+            return err(error);
         }
 
         return ok(undefined);
