@@ -126,7 +126,7 @@ export class ConnectionAuthentication {
             Buffer.from([1])
         ]);
 
-        let sharedKey = this.getSharedKey(remotePublicKeyECDH);
+        let sharedKey = this.getSharedKey(remotePublicKeyECDH, weCalledRemote);
 
         return createSHA256Hmac(buf, sharedKey);
     }

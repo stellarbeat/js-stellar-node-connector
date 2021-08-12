@@ -5,25 +5,32 @@ import {Connection} from "./connection/connection";
 
 require('dotenv').config();
 import {ConnectionAuthentication} from "./connection/connection-authentication";
-import {Config} from "./config";
+import {NodeConfig} from "./node-config";
 import {EventEmitter} from "events";
 import {Server, Socket} from "net";
 import * as P from "pino";
 
+export type NodeInfo = {
+    ledgerVersion: number,
+    overlayVersion: number,
+    overlayMinVersion: number,
+    versionString: string,
+    networkId?: string
+}
 /**
  * Supports two operations: connect to a node, and accept connections from other nodes.
  * In both cases it returns Connection instances that produce and consume StellarMessages
  */
-export class ConnectionManager extends EventEmitter{
+export class Node extends EventEmitter {
     protected logger!: P.Logger;
     protected keyPair: Keypair;
     protected connectionAuthentication: ConnectionAuthentication;
-    protected config: Config;
+    protected config: NodeConfig;
     protected server?: Server;
 
     constructor(
-        usePublicNetwork: boolean = true,
-        config: Config,
+        usePublicNetwork: boolean = true,//todo: refactor to network string in node config
+        config: NodeConfig,
         logger?: P.Logger
     ) {
         super();
@@ -75,26 +82,28 @@ export class ConnectionManager extends EventEmitter{
     }
 
     /*
-    * Create a connection to a node
+    * Connect to a node
      */
-    connect(ip: string, port: number): Connection {
+    connectTo(ip: string, port: number): Connection {
         let socket = new net.Socket();
 
         let connection = new Connection({
             ip: ip,
             port: port,
             keyPair: this.keyPair,
-            ledgerVersion: this.config.ledgerVersion,
-            overlayVersion: this.config.overlayVersion,
-            overlayMinVersion: this.config.overlayMinVersion,
-            versionString: this.config.versionString,
+            localNodeInfo: {
+                ledgerVersion: this.config.nodeInfo.ledgerVersion,
+                overlayVersion: this.config.nodeInfo.overlayVersion,
+                overlayMinVersion: this.config.nodeInfo.overlayMinVersion,
+                versionString: this.config.nodeInfo.versionString,
+            },
             listeningPort: this.config.listeningPort,
             remoteCalledUs: false,
             receiveTransactionMessages: this.config.receiveTransactionMessages,
             receiveSCPMessages: this.config.receiveSCPMessages
         }, socket, this.connectionAuthentication, this.logger);
 
-        this.logger.debug({'peer': connection.peer?.key}, 'Connect');
+        this.logger.debug({'peer': connection.remoteAddress()}, 'Connect');
 
         connection.connect();
 
@@ -128,10 +137,12 @@ export class ConnectionManager extends EventEmitter{
             ip: socket.remoteAddress!,
             port: socket.remotePort!,
             keyPair: this.keyPair,
-            ledgerVersion: this.config.ledgerVersion,
-            overlayVersion: this.config.overlayVersion,
-            overlayMinVersion: this.config.overlayMinVersion,
-            versionString: this.config.versionString,
+            localNodeInfo: {
+                ledgerVersion: this.config.nodeInfo.ledgerVersion,
+                overlayVersion: this.config.nodeInfo.overlayVersion,
+                overlayMinVersion: this.config.nodeInfo.overlayMinVersion,
+                versionString: this.config.nodeInfo.versionString,
+            },
             listeningPort: this.config.listeningPort,
             remoteCalledUs: true,
             receiveTransactionMessages: this.config.receiveTransactionMessages,

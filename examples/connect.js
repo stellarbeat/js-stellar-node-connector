@@ -1,7 +1,7 @@
-const ConnectionManager = require("../lib").ConnectionManager;
+const Node = require("../lib").Node;
 const getConfigFromEnv = require("../lib").getConfigFromEnv;
 
-let connectionManager = new ConnectionManager(
+let node = new Node(
     true,
     getConfigFromEnv()
 );
@@ -23,7 +23,7 @@ function connect() {
         port = parseInt(portArg);
     }
 
-    let connection = connectionManager.connect(ip, port);
+    let connection = node.connectTo(ip, port);
     connection
         .on('connect', (peer) => {
             console.log('Connected to Stellar Node: ' + peer.key);
