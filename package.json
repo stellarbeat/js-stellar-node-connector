@@ -1,13 +1,13 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "3.0.0-alpha.5",
+  "version": "3.0.0-alpha.6",
   "description": "Connect and send commands to nodes in the stellar network",
   "repository": {
     "type": "git",
     "url": "https://github.com/stellarbeat/js-stellar-node-connector.git"
   },
   "scripts": {
-    "prepublish": "yarn run build",
+    "prepare": "yarn run build",
     "build": "tsc --declaration",
     "examples:connect": "npm run build; node examples/connect",
     "test": "jest"
