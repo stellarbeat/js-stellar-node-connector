@@ -103,7 +103,7 @@ export class Node extends EventEmitter {
             receiveSCPMessages: this.config.receiveSCPMessages
         }, socket, this.connectionAuthentication, this.logger);
 
-        this.logger.debug({'peer': connection.remoteAddress()}, 'Connect');
+        this.logger.debug({'peer': connection.remoteAddress}, 'Connect');
 
         connection.connect();
 
