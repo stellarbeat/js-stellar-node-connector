@@ -1,24 +1,76 @@
 # stellar-js-node-connector
 
-Connect and send commands to nodes in the stellar network
+Connect and interact with nodes in the Stellar Network over the tcp protocol.
 
-## install
+This package consists of two main classes. Node and Connection. 
+
+The Node class allows you to connect to and accept connections from other nodes. 
+
+A connection to a Node is encapsulated in the Connection class. 
+It handles the Stellar Network handshake and message authentication. 
+It is a custom [duplex stream](https://nodejs.org/api/stream.html#stream_class_stream_duplex) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that wraps a [tcp socket](https://nodejs.org/api/net.html#net_class_net_socket) and respects [backpressure](https://nodejs.org/en/docs/guides/backpressuring-in-streams/). It emits and allows you to send [Stellar Messages](https://github.com/stellar/js-stellar-base/blob/6e0fa3e1a25910e193041d1f377b71f125ec4d1c/src/generated/stellar-xdr_generated.js#L2470). 
+
+Stellar Messages are the [xdr](https://github.com/stellar/stellar-core/tree/master/src/xdr) structures used in Stellar core used to pass data between nodes. They are made available in javascript thanks to the [Stellar base](https://github.com/stellar/js-stellar-base) and [js-xdr](https://github.com/stellar/js-xdr) packages.
+
+## Install, build and run tests
 `yarn install`
 
-## build code
 `yarn run build` : builds code in lib folder
 
-## test code
 `yarn run test`
 
-## usage
+#### Optional: copy .env.dist to .env and fill in parameters
 
-add log level in .env file   
-`LOG_LEVEL: debug`
+## Usage
+### Initiate connection to other node
 
-see `src/examples/connect.js` for an example on how to connect to a node  
+`let node = new Node(true, getConfigFromEnv()); 
+//Interact with the public network. Configuration in environment variables. Uses defaults if env values are missing.`
 
-for example connect to an ibm validator:   
-`yarn run examples:connect 169.51.72.53`
+`let connection:Connection = node.connectTo(peerIp, peerPort); //connect to a node`;
 
-For a more elaborate example, checkout the crawler: https://github.com/stellarbeat/js-stellar-node-crawler.git
+The Connection class wraps a [net socket] https://nodejs.org/api/net.html#net_class_net_socket and emits the same events with two twists: 
+* the connect event includes PublicKey and NodeInfo (version, overlayVersion,...). 
+* data/readable passes [StellarMessages](https://github.com/stellar/js-stellar-base/blob/6e0fa3e1a25910e193041d1f377b71f125ec4d1c/src/generated/stellar-xdr_generated.js#L2470)
+
+For example handling an SCP message:
+
+```
+connection.on("data", (stellarMessage: StellarMessage) => {
+    if (stellarMessage.switch().value === MessageType.scpMessage().value) {
+        console.log(stellarMessage.envelope().signature().toString());       
+    }
+}
+```
+
+To send a StellarMessage to a node use the sendStellarMessage or more generic write method:
+
+`connection.sendStellarMessage(StellarMessage.getScpState(0));`
+
+### Accept connections from other nodes
+*Disclaimer: at the moment this is rather limited and only used for integration testing.*
+
+```
+node.acceptIncomingConnections(11623, '127.0.0.1');
+node.on("connection", (connection:Connection) => {
+        connection.on("connect", () => {
+            console.log("Fully connected and ready to send/receive Stellar Messages");
+        });
+        connection.on("data", (stellarMessage: StellarMessage) => {
+            //do something
+        });
+});
+```
+
+### Configuration
+Checkout the NodeConf class. The following env parameters are available:
+* LOG_LEVEL=debug | info | trace
+* PRIVATE_KEY //If no secret key is supplied, one is generated at startup.
+* [LEDGER_VERSION](https://github.com/stellar/stellar-core/blob/7d73fddb0489081bfc1350a691515ff39556c1d6/src/main/Config.h#L318)
+* [OVERLAY_VERSION](https://github.com/stellar/stellar-core/blob/7d73fddb0489081bfc1350a691515ff39556c1d6/src/main/Config.h#L328)
+* [OVERLAY_MIN_VERSION](https://github.com/stellar/stellar-core/blob/7d73fddb0489081bfc1350a691515ff39556c1d6/src/main/Config.h#L327)
+* [VERSION_STRING](https://github.com/stellar/stellar-core/blob/7d73fddb0489081bfc1350a691515ff39556c1d6/src/main/Config.h#L329)
+* LISTENING_PORT=11625
+* RECV_TRANSACTION_MSG=true //will the Connection class emit Transaction messages
+* RECV_SCP_MSG=true //will the Connection class emit SCP messages
+
