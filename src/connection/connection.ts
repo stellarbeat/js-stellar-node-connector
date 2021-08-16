@@ -210,7 +210,7 @@ export class Connection extends Duplex {
                 if (processError || !this.reading) {
                     done(processError);//end the loop
                 } else if (processedMessages % 10 === 0) {//if ten messages are sequentially processed, we give control back to event loop
-                    setTimeout(() => done(null), 0);//other sockets will be able to process messages
+                    setImmediate(() => done(null));//other sockets will be able to process messages
                 } else
                     done(null);//another iteration
             }, (error) => {//function gets called when we are no longer reading
