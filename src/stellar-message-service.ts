@@ -18,7 +18,11 @@ export function verifyStatementXDRSignature(statementXDR: Buffer, peerId: Buffer
 }
 
 export function getPublicKeyStringFromBuffer(buffer: Buffer){
-    return StrKey.encodeEd25519PublicKey(buffer).toString();
+    try {
+        return ok(StrKey.encodeEd25519PublicKey(buffer).toString());
+    } catch (error){
+        return err(error);
+    }
 }
 
 export function verifySCPEnvelopeSignature(scpEnvelope: ScpEnvelope, network: Buffer): Result<boolean, Error> {
@@ -58,9 +62,13 @@ function getQuorumSetFromMessageRecursive(scpQuorumSetMessage: xdr.ScpQuorumSet)
 }
 
 export function getIpFromPeerAddress(peerAddress: xdr.PeerAddress) {
-    let peerAddressIp = peerAddress.ip().value();
-    return peerAddressIp[0] +
-        '.' + peerAddressIp[1] +
-        '.' + peerAddressIp[2] +
-        '.' + peerAddressIp[3];
+    try {
+        let peerAddressIp = peerAddress.ip().value();
+        return ok(peerAddressIp[0] +
+            '.' + peerAddressIp[1] +
+            '.' + peerAddressIp[2] +
+            '.' + peerAddressIp[3]);
+    } catch (error){
+        return err(error);
+    }
 }
