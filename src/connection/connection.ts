@@ -377,7 +377,7 @@ export class Connection extends Duplex {
         this.handshakeState = HandshakeState.COMPLETED
         this.socket.setTimeout(30000);
 
-        this.emit("connect", this.remotePublicKey, this.localNodeInfo);
+        this.emit("connect", this.remotePublicKey, this.remoteNodeInfo);
         this.emit("ready");
 
         return ok(undefined);
