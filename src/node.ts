@@ -17,6 +17,7 @@ export type NodeInfo = {
     versionString: string,
     networkId?: string
 }
+
 /**
  * Supports two operations: connect to a node, and accept connections from other nodes.
  * In both cases it returns Connection instances that produce and consume StellarMessages
@@ -127,9 +128,17 @@ export class Node extends EventEmitter {
             this.server.listen(port, host)
     }
 
-    stopAcceptingIncomingConnections() {
+    stopAcceptingIncomingConnections(callback?: (err?: Error) => void) {
         if (this.server)
-            this.server.close();
+            this.server.close(callback);
+        else if (callback)
+            callback();
+    }
+
+    public get listening() {
+        if (this.server)
+            return this.server.listening;
+        else return false;
     }
 
     protected onIncomingConnection(socket: Socket) {

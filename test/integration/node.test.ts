@@ -16,9 +16,9 @@ beforeAll(() => {
     connectionToNodeA = nodeB.connectTo('127.0.0.1', 11623);
 })
 
-afterAll(() => {
-    nodeA.stopAcceptingIncomingConnections();
+afterAll((done) => {
     connectionToNodeA.destroy();
+    nodeA.stopAcceptingIncomingConnections(done);
 })
 
 test("connect", (done) => {

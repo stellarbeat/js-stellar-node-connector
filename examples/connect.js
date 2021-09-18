@@ -1,3 +1,4 @@
+const {xdr, StrKey} = require("stellar-base");
 const Node = require("../lib").Node;
 const getConfigFromEnv = require("../lib").getConfigFromEnv;
 
