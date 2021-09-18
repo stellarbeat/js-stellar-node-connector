@@ -24,7 +24,7 @@ export type NodeInfo = {
  */
 export class Node extends EventEmitter {
     protected logger!: P.Logger;
-    protected keyPair: Keypair;
+    public keyPair: Keypair;
     protected connectionAuthentication: ConnectionAuthentication;
     protected config: NodeConfig;
     protected server?: Server;
