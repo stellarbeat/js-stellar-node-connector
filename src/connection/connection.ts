@@ -124,7 +124,7 @@ export class Connection extends Duplex {
     }
     
     get localAddress() {
-        return this.socket.localAddress + ":" + this.socket.remotePort;
+        return this.socket.localAddress + ":" + this.socket.localPort;
     }
 
     public connect() {
