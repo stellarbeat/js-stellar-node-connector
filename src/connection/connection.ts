@@ -151,7 +151,7 @@ export class Connection extends Duplex {
      * handshake and if there is a failure, terminates the connection.
      */
     protected onConnected() {
-        this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, "Connected to socket");
+        this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, "Connected to socket, initiating handshake");
         this.handshakeState = HandshakeState.CONNECTED;
         let result = this.sendHello();
         if (result.isErr()) {
@@ -245,7 +245,7 @@ export class Connection extends Duplex {
         let messageType = authenticatedMessageV0XDR.messageTypeXDR.readInt32BE(0);
         this.logger.trace({'remote': this.remoteAddress, 'local': this.localAddress}, 'Rcv msg of type: ' + messageType + ' with seq: ' + authenticatedMessageV0XDR.sequenceNumberXDR.readInt32BE(4));
         //@ts-ignore
-        this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, "Rcv " + MessageType.fromValue(messageType).name);
+        this.logger.trace({'remote': this.remoteAddress, 'local': this.localAddress}, "Rcv " + MessageType.fromValue(messageType).name);
 
         if (messageType === MessageType.transaction().value && !this.receiveTransactionMessages){
             this.increaseRemoteSequenceByOne();
@@ -336,12 +336,13 @@ export class Connection extends Duplex {
                     return err(completedHandshakeResult.error);
                 return ok(true);
             default: // we push non-handshake messages to our readable buffer for our consumers
+                this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, "Rcv " + stellarMessage.switch().name);
                 return ok(this.push(stellarMessage));
         }
     }
 
     protected sendHello(): Result<void, Error> {
-        this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, "send HELLO");
+        this.logger.trace({'remote': this.remoteAddress, 'local': this.localAddress}, "send HELLO");
         let certResult = xdrMessageCreator.createAuthCert(this.connectionAuthentication);
         if (certResult.isErr())
             return err(certResult.error);
@@ -397,7 +398,7 @@ export class Connection extends Duplex {
     }
 
     protected sendAuthMessage(): Result<void, Error> {
-        this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, 'send auth');
+        this.logger.trace({'remote': this.remoteAddress, 'local': this.localAddress}, 'send auth');
 
         let authMessageResult = xdrMessageCreator.createAuthMessage();
         if (authMessageResult.isErr())
@@ -492,7 +493,7 @@ export class Connection extends Duplex {
         }
 
         if (this.readState === ReadState.Blocked) {//the consumer wants to read again
-            this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, 'ReadState unblocked by consumer');
+            this.logger.trace({'remote': this.remoteAddress, 'local': this.localAddress}, 'ReadState unblocked by consumer');
             this.readState = ReadState.ReadyForLength;
         }
         // Trigger a read but wait until the end of the event loop.
@@ -504,7 +505,7 @@ export class Connection extends Duplex {
     }
 
     public _write(message: StellarMessage, encoding: string, callback: (error?: Error | null) => void): void {
-        this.logger.debug({'remote': this.remoteAddress, 'local': this.localAddress}, "write " + message.switch().name + " to socket");
+        this.logger.trace({'remote': this.remoteAddress, 'local': this.localAddress}, "write " + message.switch().name + " to socket");
         let authenticatedMessageResult = this.authenticateMessage(message);
         if (authenticatedMessageResult.isErr()) {
             this.logger.error({'remote': this.remoteAddress, 'local': this.localAddress}, authenticatedMessageResult.error.message);
