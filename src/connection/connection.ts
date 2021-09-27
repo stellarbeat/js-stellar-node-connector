@@ -309,7 +309,6 @@ export class Connection extends Duplex {
 				remote: this.remoteAddress,
 				local: this.localAddress
 			},
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 			//@ts-ignore
 			'Rcv ' + MessageType.fromValue(messageType).name
 		);

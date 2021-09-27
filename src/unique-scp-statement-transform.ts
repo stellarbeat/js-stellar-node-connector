@@ -21,8 +21,6 @@ export class UniqueSCPStatementTransform extends Transform {
 		encoding: string,
 		next: TransformCallback
 	): void {
-		console.log('transform');
-
 		if (stellarMessage.switch() !== MessageType.scpMessage()) return next();
 
 		if (this.cache.has(stellarMessage.envelope().signature().toString())) {
