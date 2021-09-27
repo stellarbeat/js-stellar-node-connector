@@ -44,8 +44,10 @@ export default {
 
 			//@ts-ignore
 			return ok(new xdr.StellarMessage.hello(hello));
-		} catch (error: any) {
-			return err(new Error('createHelloMessage failed: ' + error.message));
+		} catch (error) {
+			let msg = 'CreateHelloMessage failed';
+			if (error instanceof Error) msg += ': ' + error.message;
+			return err(new Error(msg));
 		}
 	},
 
@@ -60,8 +62,9 @@ export default {
 			return ok(
 				new xdr.AuthCert({
 					pubkey: curve25519PublicKey,
-					expiration: connectionAuthentication.authCert.expiration,
-					sig: connectionAuthentication.authCert.signature
+					expiration: connectionAuthentication.getAuthCert(new Date())
+						.expiration,
+					sig: connectionAuthentication.getAuthCert(new Date()).signature
 				})
 			);
 		} catch (error) {

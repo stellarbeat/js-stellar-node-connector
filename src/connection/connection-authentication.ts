@@ -20,9 +20,13 @@ export class ConnectionAuthentication {
 	publicKeyECDH: Curve25519PublicBuffer;
 	weCalledRemoteSharedKeys: Map<string, Buffer> = new Map();
 	remoteCalledUsSharedKeys: Map<string, Buffer> = new Map();
-	authCert: AuthCert;
 	networkId: Buffer;
 	keyPair: Keypair;
+
+	protected authCert?: AuthCert;
+	protected authCertExpiration = 0;
+
+	static AUTH_EXPIRATION_LIMIT = 360000; //60 minutes
 
 	constructor(keyPair: Keypair, networkId: Buffer) {
 		this.networkId = networkId;
@@ -31,7 +35,18 @@ export class ConnectionAuthentication {
 		sodium.randombytes_buf(this.secretKeyECDH);
 		this.publicKeyECDH = Buffer.alloc(32);
 		sodium.crypto_scalarmult_base(this.publicKeyECDH, this.secretKeyECDH);
-		this.authCert = this.createAuthCert(new Date()); //todo: expiration
+	}
+
+	getAuthCert(validAt: Date): AuthCert {
+		if (
+			!this.authCert ||
+			this.authCertExpiration <
+				validAt.getTime() + ConnectionAuthentication.AUTH_EXPIRATION_LIMIT / 2
+		) {
+			this.authCert = this.createAuthCert(validAt);
+		}
+
+		return this.authCert;
 	}
 
 	getSharedKey(
@@ -66,14 +81,11 @@ export class ConnectionAuthentication {
 	}
 
 	public createAuthCert(time: Date): AuthCert {
-		const expirationDateInSecondsSinceEpoch =
-			Math.round(time.getTime() / 1000) + 3600; //60 minutes expiration
-		const expiration = Uint64.fromString(
-			expirationDateInSecondsSinceEpoch.toString()
-		);
+		this.authCertExpiration =
+			time.getTime() + ConnectionAuthentication.AUTH_EXPIRATION_LIMIT;
+		const expiration = Uint64.fromString(this.authCertExpiration.toString());
 		const rawSigData = Buffer.concat([
 			this.networkId,
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 			//@ts-ignore
 			EnvelopeType.envelopeTypeAuth().toXDR(),
 			expiration.toXDR(),
