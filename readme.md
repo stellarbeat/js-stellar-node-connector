@@ -1,3 +1,5 @@
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+
 # stellar-js-node-connector
 
 Connect and interact with nodes in the Stellar Network over the tcp protocol.

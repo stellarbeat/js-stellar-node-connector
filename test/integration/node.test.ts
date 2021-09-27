@@ -27,7 +27,7 @@ test("connect", (done) => {
         connectionToNodeB.on("connect", () => {
             console.log("Fully connected to node B");
         });
-        connectionToNodeB.on("data", (stellarMessage: StellarMessage) => {
+        connectionToNodeB.on("data", () => {
             //pong
             connectionToNodeB.sendStellarMessage(StellarMessage.getScpQuorumset(Buffer.alloc(32)))
         })
@@ -40,7 +40,7 @@ test("connect", (done) => {
             console.log('Fully connected to server');
             //ping
             connectionToNodeA.sendStellarMessage(StellarMessage.getScpQuorumset(Buffer.alloc(32)))
-        }).on('data', (stellarMessage: StellarMessage) => {
+        }).on('data', () => {
             pingPongCounter++;
             if(pingPongCounter > 100)
                 done()

@@ -1,64 +1,73 @@
-import {xdr} from "stellar-base";
-import {err, ok, Result} from "neverthrow";
+import { xdr } from 'stellar-base';
+import { err, ok, Result } from 'neverthrow';
 import AuthCert = xdr.AuthCert;
 import Hello = xdr.Hello;
-import {ConnectionAuthentication} from "./connection-authentication";
-import Auth = xdr.Auth;
-
-const StellarBase = require('stellar-base');
+import { ConnectionAuthentication } from './connection-authentication';
 
 export default {
-    createAuthMessage: function (): Result<Auth, Error>{
-        try{
-            let auth = new StellarBase.xdr.Auth({unused: 1});
-            return ok(new StellarBase.xdr.StellarMessage.auth(auth));
-        } catch (error){
-            return err(new Error("Auth msg create failed: " + error.message));
-        }
-    },
+	createAuthMessage: function (): Result<xdr.StellarMessage, Error> {
+		try {
+			const auth = new xdr.Auth({ unused: 1 });
+			// @ts-ignore
+			const authMessage = new xdr.StellarMessage.auth(auth) as StellarMessage;
+			return ok(authMessage);
+		} catch (error) {
+			if (error instanceof Error)
+				return err(new Error('Auth msg create failed: ' + error.message));
+			else return err(new Error('Auth msg create failed'));
+		}
+	},
 
-    createHelloMessage: function (peerId: xdr.PublicKey,
-                                  nonce: Buffer,
-                                  authCert: xdr.AuthCert,
-                                  stellarNetworkId: Buffer,
-                                  ledgerVersion: number,
-                                  overlayVersion: number,
-                                  overlayMinVersion: number,
-                                  versionStr: string,
-                                  listeningPort: number
-    ): Result<Hello, Error> {
-        try {
-            let hello = new StellarBase.xdr.Hello({
-                ledgerVersion: ledgerVersion,
-                overlayVersion: overlayVersion,
-                overlayMinVersion: overlayMinVersion,
-                networkId: stellarNetworkId,
-                versionStr: versionStr,
-                listeningPort: listeningPort,
-                peerId: peerId,
-                cert: authCert,
-                nonce: nonce
-            });
+	createHelloMessage: function (
+		peerId: xdr.PublicKey,
+		nonce: Buffer,
+		authCert: xdr.AuthCert,
+		stellarNetworkId: Buffer,
+		ledgerVersion: number,
+		overlayVersion: number,
+		overlayMinVersion: number,
+		versionStr: string,
+		listeningPort: number
+	): Result<Hello, Error> {
+		try {
+			const hello = new xdr.Hello({
+				ledgerVersion: ledgerVersion,
+				overlayVersion: overlayVersion,
+				overlayMinVersion: overlayMinVersion,
+				networkId: stellarNetworkId,
+				versionStr: versionStr,
+				listeningPort: listeningPort,
+				peerId: peerId,
+				cert: authCert,
+				nonce: nonce
+			});
 
-            return ok(new StellarBase.xdr.StellarMessage.hello(hello));
-        } catch (error){
-            return err(new Error("createHelloMessage failed: " + error.message));
-        }
-    },
+			//@ts-ignore
+			return ok(new xdr.StellarMessage.hello(hello));
+		} catch (error: any) {
+			return err(new Error('createHelloMessage failed: ' + error.message));
+		}
+	},
 
-    createAuthCert: function (connectionAuthentication: ConnectionAuthentication): Result<AuthCert, Error> {
-        try {
-            let curve25519PublicKey = new StellarBase.xdr.Curve25519Public({
-                key: connectionAuthentication.publicKeyECDH
-            });
+	createAuthCert: function (
+		connectionAuthentication: ConnectionAuthentication
+	): Result<AuthCert, Error> {
+		try {
+			const curve25519PublicKey = new xdr.Curve25519Public({
+				key: connectionAuthentication.publicKeyECDH
+			});
 
-            return ok(new StellarBase.xdr.AuthCert({
-                pubkey: curve25519PublicKey,
-                expiration: connectionAuthentication.authCert.expiration,
-                sig: connectionAuthentication.authCert.signature
-            }));
-        } catch (error) {
-            return err(new Error("createAuthCert failed: " + error.message));
-        }
-    }
+			return ok(
+				new xdr.AuthCert({
+					pubkey: curve25519PublicKey,
+					expiration: connectionAuthentication.authCert.expiration,
+					sig: connectionAuthentication.authCert.signature
+				})
+			);
+		} catch (error) {
+			if (error instanceof Error)
+				return err(new Error('createAuthCert failed: ' + error.message));
+			else return err(new Error('createAuthCert failed'));
+		}
+	}
 };
