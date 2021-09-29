@@ -6,3 +6,4 @@ flow-typed/
 .env
 .clinic/
 build/
+.DS_Store
