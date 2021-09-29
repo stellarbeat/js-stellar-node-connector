@@ -53,7 +53,9 @@ it('should create a new Authcert if expiration/2 has passed', function () {
 	);
 	const newAuthCert = connectionAuth.getAuthCert(
 		new Date(
-			new Date().getTime() + ConnectionAuthentication.AUTH_EXPIRATION_LIMIT / 2
+			new Date().getTime() +
+				ConnectionAuthentication.AUTH_EXPIRATION_LIMIT / 2 +
+				100
 		)
 	);
 
