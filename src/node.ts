@@ -1,4 +1,4 @@
-import { FastSigning, hash, Keypair, Networks } from 'stellar-base';
+import { Keypair } from 'stellar-base';
 
 import * as net from 'net';
 import { Connection } from './connection/connection';
@@ -29,56 +29,18 @@ export class Node extends EventEmitter {
 	protected server?: Server;
 
 	constructor(
-		usePublicNetwork = true, //todo: refactor to network string in node config
 		config: NodeConfig,
-		logger?: P.Logger
+		keyPair: Keypair,
+		connectionAuthentication: ConnectionAuthentication,
+		logger: P.Logger
 	) {
 		super();
 		this.config = config;
-
-		if (!logger) {
-			logger = this.initializeDefaultLogger();
-		}
-
-		this.logger = logger.child({ app: 'Connector' });
-
-		if (this.config.privateKey) {
-			try {
-				this.keyPair = Keypair.fromSecret(this.config.privateKey);
-			} catch (error) {
-				throw new Error('Invalid private key');
-			}
-		} else {
-			this.keyPair = Keypair.random();
-		}
-		this.logger.info('Using public key: ' + this.keyPair.publicKey());
-
-		let networkId: Buffer;
-		if (usePublicNetwork) {
-			networkId = hash(Buffer.from(Networks.PUBLIC));
-		} else {
-			networkId = hash(Buffer.from(Networks.TESTNET));
-		}
-
-		if (!FastSigning) {
-			this.logger.debug('warning', 'FastSigning not enabled');
-		}
-
-		this.connectionAuthentication = new ConnectionAuthentication(
-			this.keyPair,
-			networkId
-		);
-	}
-
-	setLogger(logger: P.Logger): void {
+		this.keyPair = keyPair;
 		this.logger = logger;
-	}
+		this.connectionAuthentication = connectionAuthentication;
 
-	protected initializeDefaultLogger(): P.Logger {
-		return P({
-			level: process.env.LOG_LEVEL || 'info',
-			base: undefined
-		});
+		this.logger.info('Using public key: ' + this.keyPair.publicKey());
 	}
 
 	/*

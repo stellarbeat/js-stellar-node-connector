@@ -27,10 +27,12 @@ Stellar Messages are the [xdr](https://github.com/stellar/stellar-core/tree/mast
 ## Usage
 ### Initiate connection to other node
 
-`let node = new Node(true, getConfigFromEnv()); 
+```
+import { createNode } from 'src'
+let node = createNode(true, getConfigFromEnv()); 
 //Interact with the public network. Configuration in environment variables. Uses defaults if env values are missing.`
 
-`let connection:Connection = node.connectTo(peerIp, peerPort); //connect to a node`;
+let connection:Connection = node.connectTo(peerIp, peerPort); //connect to a node;
 
 The Connection class wraps a [net socket] https://nodejs.org/api/net.html#net_class_net_socket and emits the same events with two twists: 
 * the connect event includes PublicKey and NodeInfo (version, overlayVersion,...). 
@@ -90,5 +92,6 @@ you can inspect the content of the messages without coding.
 ### Publish to npm
 ```
 yarn version --major|minor|patch|premajor|preminor|prepatch
+yarn publish
 git push --tags
 ```

@@ -1,9 +1,11 @@
+import { Networks } from 'stellar-base';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config();
 import * as yn from 'yn';
 import { NodeInfo } from './node';
 
 export type NodeConfig = {
+	network: string;
 	nodeInfo: NodeInfo;
 	listeningPort: number;
 	privateKey?: string;
@@ -24,8 +26,12 @@ export function getConfigFromEnv(): NodeConfig {
 		: undefined;
 	const receiveTransactionMessages = yn(process.env['RECEIVE_TRANSACTION_MSG']);
 	const receiveSCPMessages = yn(process.env['RECEIVE_SCP_MSG']);
+	const networkString = process.env['NETWORK']
+		? process.env['NETWORK']
+		: Networks.PUBLIC;
 
 	return {
+		network: networkString,
 		nodeInfo: {
 			ledgerVersion: ledgerVersion,
 			overlayMinVersion: overlayMinVersion,

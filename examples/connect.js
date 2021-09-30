@@ -1,9 +1,8 @@
 const { xdr, StrKey } = require('stellar-base');
-const SCPStatement = require('../lib').SCPStatement;
-const Node = require('../lib').Node;
+const { createNode } = require('../lib');
 const getConfigFromEnv = require('../lib').getConfigFromEnv;
 
-let node = new Node(true, getConfigFromEnv());
+let node = createNode(getConfigFromEnv());
 
 connect();
 

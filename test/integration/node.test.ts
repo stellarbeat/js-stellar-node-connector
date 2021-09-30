@@ -1,4 +1,4 @@
-import { Node } from '../../src';
+import { createNode, Node } from '../../src';
 import { Connection } from '../../src';
 import { xdr } from 'stellar-base';
 import StellarMessage = xdr.StellarMessage;
@@ -10,8 +10,8 @@ let nodeB: Node; //we don't want to connect the node to itself
 let connectionToNodeA: Connection;
 
 beforeAll(() => {
-	nodeA = new Node(true, getConfigFromEnv()); //random public key
-	nodeB = new Node(true, getConfigFromEnv()); //other random public key
+	nodeA = createNode(getConfigFromEnv()); //random public key
+	nodeB = createNode(getConfigFromEnv()); //other random public key
 	nodeA.acceptIncomingConnections(11623, '127.0.0.1');
 	connectionToNodeA = nodeB.connectTo('127.0.0.1', 11623);
 });
@@ -24,7 +24,9 @@ afterAll((done) => {
 test('connect', (done) => {
 	let pingPongCounter = 0;
 	nodeA.on('connection', (connectionToNodeB) => {
-		connectionToNodeB.on('connect', () => {return; });
+		connectionToNodeB.on('connect', () => {
+			return;
+		});
 		connectionToNodeB.on('data', () => {
 			//pong
 			connectionToNodeB.sendStellarMessage(
