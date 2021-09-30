@@ -86,3 +86,9 @@ You can find ip/port of nodes on https://stellarbeat.io
 
 The script connects to the node and logs the xdr stellar messages it receives to standard output. Using [Stellar laboratory](https://laboratory.stellar.org/#xdr-viewer?input=AAAACAAAAAIAAAAAVLkjMqFSTqiF2nhSF6zfatXkIxwm9h3NAah7%2FoJqpfwAAABkAhPUSgAPY%2FIAAAAAAAAAAAAAAAEAAAAAAAAAAwAAAAFHVE4AAAAAACJWAPBnEjR3slaKYj1uzT4ZkcOW8dg2e6shBFN2ro8wAAAAAAAAAAAAAAAAAAKKOwADDUAAAAAAMHXkhQAAAAAAAAABgmql%2FAAAAEAPXdZYvTZvbFUU0phuw5JwH6REiiTS5NiwRvlmtvQacigoyeYWF1PWOyN6ITKUu1CFUb6iY0WKV69y69seTSQI&type=StellarMessage&network=test)
 you can inspect the content of the messages without coding.
+
+### Publish to npm
+```
+yarn version --major|minor|patch|premajor|preminor|prepatch
+git push --tags
+```
