@@ -12,6 +12,8 @@
     "examples:connect": "npm run build; node examples/connect",
     "test": "jest"
   },
+  "types": "lib/index.d.ts",
+  "files": [".env.dist", "readme.md", "lib/**", "LICENSE", "examples/**"],
   "main": "lib/index.js",
   "author": "pieterjan84@github",
   "license": "MIT",
