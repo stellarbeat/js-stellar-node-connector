@@ -1,7 +1,7 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
   "version": "3.0.0-alpha.20",
-  "description": "Connect and send commands to nodes in the stellar network",
+  "description": "Connect and interact with nodes in the Stellar Network over the tcp protocol",
   "repository": {
     "type": "git",
     "url": "https://github.com/stellarbeat/js-stellar-node-connector.git"

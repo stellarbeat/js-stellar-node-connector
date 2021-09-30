@@ -24,7 +24,7 @@ afterAll((done) => {
 test('connect', (done) => {
 	let pingPongCounter = 0;
 	nodeA.on('connection', (connectionToNodeB) => {
-		connectionToNodeB.on('connect', () => {});
+		connectionToNodeB.on('connect', () => {return; });
 		connectionToNodeB.on('data', () => {
 			//pong
 			connectionToNodeB.sendStellarMessage(
