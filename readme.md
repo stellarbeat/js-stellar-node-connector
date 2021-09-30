@@ -33,8 +33,9 @@ let node = createNode(true, getConfigFromEnv());
 //Interact with the public network. Configuration in environment variables. Uses defaults if env values are missing.`
 
 let connection:Connection = node.connectTo(peerIp, peerPort); //connect to a node;
+```
 
-The Connection class wraps a [net socket] https://nodejs.org/api/net.html#net_class_net_socket and emits the same events with two twists: 
+The Connection class wraps a [net socket](https://nodejs.org/api/net.html#net_class_net_socket) and emits the same events with two twists: 
 * the connect event includes PublicKey and NodeInfo (version, overlayVersion,...). 
 * data/readable passes [StellarMessages](https://github.com/stellar/js-stellar-base/blob/6e0fa3e1a25910e193041d1f377b71f125ec4d1c/src/generated/stellar-xdr_generated.js#L2470)
 
