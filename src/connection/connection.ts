@@ -17,7 +17,8 @@ import StellarMessage = xdr.StellarMessage;
 import MessageType = xdr.MessageType;
 import * as P from 'pino';
 import { NodeInfo } from '../node';
-import { PublicKey } from '@stellarbeat/js-stellar-domain';
+
+type PublicKey = string;
 
 enum ReadState {
 	ReadyForLength,
@@ -597,7 +598,7 @@ export class Connection extends Duplex {
 		} catch (error) {
 			if (error instanceof Error)
 				return err(new Error('authenticateMessage failed: ' + error.message));
-			else return err(new Error('autenthicateMessage failed'));
+			else return err(new Error('authenticateMessage failed'));
 		}
 	}
 

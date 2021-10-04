@@ -37,11 +37,7 @@
     "workerpool": "^6.1.5",
     "yn": "^4.0.0"
   },
-  "peerDependencies": {
-    "@stellarbeat/js-stellar-domain": "^2.23.1"
-  },
   "devDependencies": {
-    "@stellarbeat/js-stellar-domain": "^2.23.1",
     "@types/async": "^3.2.7",
     "@types/jest": "^27.0.0",
     "@types/lru-cache": "^5.1.0",

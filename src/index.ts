@@ -28,7 +28,8 @@ export {
 	createStatementXDRSignature,
 	getIpFromPeerAddress,
 	verifySCPEnvelopeSignature,
-	getQuorumSetFromMessage
+	getQuorumSetFromMessage,
+	QuorumSetDTO
 } from './stellar-message-service'; //todo: separate package?
 
 export function createNode(config: NodeConfig, logger?: P.Logger): Node {

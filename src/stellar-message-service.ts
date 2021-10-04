@@ -1,13 +1,14 @@
-/*
-Fast way to determine message type without parsing the whole xdr through the StellarBase xdr class todo: improve doc
- */
-import { hash, StrKey, xdr } from 'stellar-base';
+import { StrKey, xdr } from 'stellar-base';
 import { ok, err, Result } from 'neverthrow';
-import { QuorumSet } from '@stellarbeat/js-stellar-domain';
 import { createSignature, verifySignature } from './crypto-helper';
 import ScpEnvelope = xdr.ScpEnvelope;
 import ScpStatement = xdr.ScpStatement;
-import * as buffer from 'buffer';
+
+export interface QuorumSetDTO {
+	validators: string[];
+	innerQuorumSets: QuorumSetDTO[];
+	threshold: number;
+}
 
 export function verifyStatementXDRSignature(
 	statementXDR: Buffer,
@@ -97,7 +98,7 @@ export function verifySCPEnvelopeSignature(
 
 export function getQuorumSetFromMessage(
 	scpQuorumSetMessage: xdr.ScpQuorumSet
-): Result<QuorumSet, Error> {
+): Result<QuorumSetDTO, Error> {
 	try {
 		return ok(getQuorumSetFromMessageRecursive(scpQuorumSetMessage));
 	} catch (error) {
@@ -108,23 +109,16 @@ export function getQuorumSetFromMessage(
 
 function getQuorumSetFromMessageRecursive(
 	scpQuorumSetMessage: xdr.ScpQuorumSet
-): QuorumSet {
-	const quorumSet = new QuorumSet(
-		hash(scpQuorumSetMessage.toXDR()).toString('base64'),
-		scpQuorumSetMessage.threshold()
-	);
-
-	scpQuorumSetMessage.validators().forEach((validator) => {
-		quorumSet.validators.push(StrKey.encodeEd25519PublicKey(validator.value()));
-	});
-
-	scpQuorumSetMessage.innerSets().forEach((innerQuorumSet) => {
-		quorumSet.innerQuorumSets.push(
-			getQuorumSetFromMessageRecursive(innerQuorumSet)
-		);
-	});
-
-	return quorumSet;
+): QuorumSetDTO {
+	return {
+		threshold: scpQuorumSetMessage.threshold(),
+		validators: scpQuorumSetMessage
+			.validators()
+			.map((validator) => StrKey.encodeEd25519PublicKey(validator.value())),
+		innerQuorumSets: scpQuorumSetMessage
+			.innerSets()
+			.map((innerSet) => getQuorumSetFromMessageRecursive(innerSet))
+	};
 }
 
 export function getIpFromPeerAddress(
