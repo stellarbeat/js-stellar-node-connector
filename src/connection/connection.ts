@@ -343,30 +343,32 @@ export class Connection extends Duplex {
 			if (result.isErr()) return err(result.error);
 		}
 
+		let stellarMessage: xdr.StellarMessage;
 		try {
-			const result = this.handleStellarMessage(
-				StellarMessage.fromXDR(data.slice(12, data.length - 32))
-			);
-			if (result.isErr()) {
-				return err(result.error);
-			}
-			if (!result.value) {
-				this.logger.debug(
-					{
-						remote: this.remoteAddress,
-						local: this.localAddress
-					},
-					'Consumer cannot handle load, stop reading from socket'
-				);
-				this.readState = ReadState.Blocked;
-				return ok(false);
-			} //our read buffer is full, meaning the consumer did not process the messages timely
-
-			return ok(true);
+			stellarMessage = StellarMessage.fromXDR(data.slice(12, data.length - 32));
 		} catch (error) {
 			if (error instanceof Error) return err(error);
-			else return err(new Error('Error processing message'));
+			else return err(new Error('Error converting xdr to StellarMessage'));
 		}
+
+		const handleStellarMessageResult =
+			this.handleStellarMessage(stellarMessage);
+		if (handleStellarMessageResult.isErr()) {
+			return err(handleStellarMessageResult.error);
+		}
+		if (!handleStellarMessageResult.value) {
+			this.logger.debug(
+				{
+					remote: this.remoteAddress,
+					local: this.localAddress
+				},
+				'Consumer cannot handle load, stop reading from socket'
+			);
+			this.readState = ReadState.Blocked;
+			return ok(false);
+		} //our read buffer is full, meaning the consumer did not process the messages timely
+
+		return ok(true);
 	}
 
 	protected verifyAuthentication(

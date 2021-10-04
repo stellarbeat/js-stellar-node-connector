@@ -1,8 +1,7 @@
 import {
 	createSCPEnvelopeSignature,
 	getQuorumSetFromMessage,
-	verifySCPEnvelopeSignature,
-	QuorumSetDTO
+	verifySCPEnvelopeSignature
 } from '../src';
 import { xdr, Keypair, Networks, hash } from 'stellar-base';
 
