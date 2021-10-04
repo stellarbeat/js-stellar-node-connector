@@ -29,6 +29,7 @@ function connect() {
 			console.log('Connected to Stellar Node: ' + publicKey);
 			console.log(nodeInfo);
 			connectedPublicKey = publicKey;
+			//connection.sendStellarMessage(xdr.StellarMessage.getScpState(0));
 		})
 		.on('data', (data) => {
 			switch (data.switch()) {

@@ -77,8 +77,8 @@ Checkout the NodeConf class. The following env parameters are available:
 * [OVERLAY_MIN_VERSION](https://github.com/stellar/stellar-core/blob/7d73fddb0489081bfc1350a691515ff39556c1d6/src/main/Config.h#L327)
 * [VERSION_STRING](https://github.com/stellar/stellar-core/blob/7d73fddb0489081bfc1350a691515ff39556c1d6/src/main/Config.h#L329)
 * LISTENING_PORT=11625
-* RECV_TRANSACTION_MSG=true //will the Connection class emit Transaction messages
-* RECV_SCP_MSG=true //will the Connection class emit SCP messages
+* RECEIVE_TRANSACTION_MSG=true //will the Connection class emit Transaction messages
+* RECEIVE_SCP_MSG=true //will the Connection class emit SCP messages
 
 ### Example: Connect to a node
 You can connect to any node with the example script:
