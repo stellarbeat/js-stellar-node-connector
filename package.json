@@ -1,6 +1,6 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "description": "Connect and interact with nodes in the Stellar Network over the tcp protocol",
   "repository": {
     "type": "git",
