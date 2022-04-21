@@ -9,13 +9,14 @@ export class FlowController {
 
 	constructor(public readonly maxFloodMessageCapacity: number) {}
 
-	initialize(remoteOverlayVersion: number): void {
+	initialize(localOverlayVersion: number, remoteOverlayVersion: number): void {
 		if (this.initialized) {
 			throw new Error('Flow control already initialized');
 		}
 
 		this.initialized = true;
-		this.flowControlEnabled = remoteOverlayVersion >= 20;
+		this.flowControlEnabled =
+			remoteOverlayVersion >= 20 && localOverlayVersion >= 20;
 	}
 
 	sendMore(messageType?: MessageType): boolean {

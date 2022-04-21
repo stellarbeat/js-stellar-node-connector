@@ -17,7 +17,7 @@ beforeAll(() => {
 	configA.nodeInfo.overlayVersion = 20;
 	const configB = getConfigFromEnv();
 	configB.maxFloodMessageCapacity = 2;
-	configA.nodeInfo.overlayVersion = 20;
+	configB.nodeInfo.overlayVersion = 20;
 	nodeA = createNode(configA); //random public key
 	nodeB = createNode(configB); //other random public key
 	nodeA.acceptIncomingConnections(11623, '127.0.0.1');

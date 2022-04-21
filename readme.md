@@ -49,8 +49,8 @@ events with two twists:
 * the connect event includes PublicKey and NodeInfo (version, overlayVersion,...).
 * data/readable passes StellarMessageWork objects that
   contain [StellarMessages](https://github.com/stellar/js-stellar-base/blob/6e0fa3e1a25910e193041d1f377b71f125ec4d1c/src/generated/stellar-xdr_generated.js#L2470)
-  and a 'done' callback. The done callback is needed for the custom flow control protocol implemented in stellar nodes. This protocol 
-  controls the amount of flood messages (transaction, scp) that are sent to peers. 
+  and a 'done' callback. The done callback is needed for the custom flow control protocol implemented in stellar nodes.
+  This protocol controls the amount of flood messages (transaction, scp) that are sent to peers.
 
 For example handling an SCP message:
 
@@ -100,7 +100,8 @@ Checkout the NodeConf class. The following env parameters are available:
 * LISTENING_PORT=11625
 * RECEIVE_TRANSACTION_MSG=true //will the Connection class emit Transaction messages
 * RECEIVE_SCP_MSG=true //will the Connection class emit SCP messages
-* MAX_FLOOD_CAPACITY=200 //flow control of flood messages. E.g. 200 flood messages need to be processed before peer sends more. 
+* MAX_FLOOD_CAPACITY=200 //flow control of flood messages. E.g. 200 flood messages need to be processed before peer
+  sends more. Flow control is enabled when local and remote nodes have an overlay version >= 20
 
 ### Example: Connect to a node
 
