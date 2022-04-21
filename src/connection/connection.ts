@@ -17,6 +17,7 @@ import { NodeInfo } from '../node';
 import { FlowController } from './flow-controller';
 import StellarMessage = xdr.StellarMessage;
 import MessageType = xdr.MessageType;
+import { mapUnknownToError } from '../mapUnknownToError';
 
 type PublicKey = string;
 
@@ -260,9 +261,10 @@ export class Connection extends Duplex {
 					setImmediate(() => done(null)); //other sockets will be able to process messages
 				} else done(null); //another iteration
 			},
-			(error) => {
+			(err) => {
 				//function gets called when we are no longer reading
-				if (error) {
+				if (err) {
+					const error = mapUnknownToError(err);
 					this.logger.error(
 						{ remote: this.remoteAddress, local: this.localAddress },
 						error.message
