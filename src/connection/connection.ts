@@ -17,7 +17,7 @@ import { NodeInfo } from '../node';
 import { FlowController } from './flow-controller';
 import StellarMessage = xdr.StellarMessage;
 import MessageType = xdr.MessageType;
-import { mapUnknownToError } from '../mapUnknownToError';
+import { mapUnknownToError } from '../map-unknown-to-error';
 
 type PublicKey = string;
 
