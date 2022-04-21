@@ -1,5 +1,5 @@
 import { hash, Keypair, Networks, xdr } from 'stellar-base';
-import { createSCPEnvelopeSignature } from '../../src';
+import { createSCPEnvelopeSignature } from '../src';
 
 export function createDummyExternalizeMessage(keyPair: Keypair) {
 	const commit = new xdr.ScpBallot({ counter: 1, value: Buffer.alloc(32) });

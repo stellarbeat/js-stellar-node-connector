@@ -1,6 +1,6 @@
 import { getQuorumSetFromMessage, verifySCPEnvelopeSignature } from '../src';
 import { hash, Keypair, Networks, xdr } from 'stellar-base';
-import { createDummyExternalizeMessage } from './fixtures/stellar-message.fixtures';
+import { createDummyExternalizeMessage } from '../fixtures/stellar-message.fixtures';
 
 it('should create and verify envelope signatures correctly', () => {
 	const scpMessage = createDummyExternalizeMessage(Keypair.random());

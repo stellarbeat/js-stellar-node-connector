@@ -4,7 +4,7 @@ import { xdr } from 'stellar-base';
 import StellarMessage = xdr.StellarMessage;
 import { getConfigFromEnv } from '../../src';
 import { StellarMessageWork } from '../../src/connection/connection';
-import { createDummyExternalizeMessage } from '../fixtures/stellar-message.fixtures';
+import { createDummyExternalizeMessage } from '../../fixtures/stellar-message.fixtures';
 
 let nodeA: Node;
 let nodeB: Node; //we don't want to connect the node to itself
