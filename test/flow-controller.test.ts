@@ -20,6 +20,6 @@ it('sendMore should return true if there is no capacity left for new flood messa
 
 function createFlowControllerWith(localOverlay: number, remoteOverlay: number) {
 	const flowController = new FlowController(2);
-	flowController.initialize(localOverlay, remoteOverlay);
+	flowController.enableIfValidOverlayVersions(localOverlay, remoteOverlay);
 	return flowController;
 }

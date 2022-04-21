@@ -5,23 +5,18 @@ import MessageType = xdr.MessageType;
 export class FlowController {
 	private flowControlEnabled = false;
 	private floodMessageCapacity = 0;
-	private initialized = false;
 
 	constructor(public readonly maxFloodMessageCapacity: number) {}
 
-	initialize(localOverlayVersion: number, remoteOverlayVersion: number): void {
-		if (this.initialized) {
-			throw new Error('Flow control already initialized');
-		}
-
-		this.initialized = true;
+	enableIfValidOverlayVersions(
+		localOverlayVersion: number,
+		remoteOverlayVersion: number
+	): void {
 		this.flowControlEnabled =
 			remoteOverlayVersion >= 20 && localOverlayVersion >= 20;
 	}
 
 	sendMore(messageType?: MessageType): boolean {
-		if (!this.initialized) throw new Error('Flow control not initialized');
-
 		if (!this.flowControlEnabled) return false; //no need to send more if flow control not enabled
 
 		if (messageType && isFloodMessage(messageType)) this.floodMessageCapacity--;

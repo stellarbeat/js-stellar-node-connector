@@ -547,7 +547,7 @@ export class Connection extends Duplex {
 		if (!this.remoteNodeInfo)
 			throw new Error('No remote overlay version after handshake');
 
-		this.flowController.initialize(
+		this.flowController.enableIfValidOverlayVersions(
 			this.localNodeInfo.overlayVersion,
 			this.remoteNodeInfo.overlayVersion
 		);
