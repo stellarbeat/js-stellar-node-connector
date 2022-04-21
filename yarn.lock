@@ -797,13 +797,6 @@
   dependencies:
     "@types/yargs-parser" "*"
 
-"@types/yn@^3.1.0":
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/@types/yn/-/yn-3.1.0.tgz#02e522edc6f869db59326b12caaaa10db97dcc5e"
-  integrity sha512-Qs2tU/syFYlALjR3EoT+NcvpMwAd6voSiDxW+c8bhAN1WbzQUnRfWTmttORf4R1WqDUT+dvHKj+llupSxs0O/w==
-  dependencies:
-    yn "*"
-
 "@typescript-eslint/eslint-plugin@^4.31.2":
   version "4.33.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-4.33.0.tgz#c24dc7c8069c7706bc40d99f6fa87edcb2005276"
@@ -3593,7 +3586,7 @@ normalize-url@^6.0.1:
   resolved "https://registry.yarnpkg.com/normalize-url/-/normalize-url-6.1.0.tgz#40d0885b535deffe3f3147bec877d05fe4c5668a"
   integrity sha512-DlL+XwOy3NxAQ8xuC0okPgK46iuVNAK01YN7RueYBqqFeGsBjV9XmCAzAdgt+667bCl5kPh9EqKKDwnaPG1I7A==
 
-np@^7.5.0:
+np@^7.6.1:
   version "7.6.1"
   resolved "https://registry.yarnpkg.com/np/-/np-7.6.1.tgz#b1cd70a0941d03779f4c7e9036ec67b227aee604"
   integrity sha512-EHr5PtMPzNmkM/trnWQWTKAogJnVP1RzTFfIyvPK2COvLN6Vqut4gFXuWNng15xuqnTgmUPzKYbpQAZsYR+Dkw==
@@ -5000,11 +4993,6 @@ yargs@^16.2.0:
     string-width "^4.2.0"
     y18n "^5.0.5"
     yargs-parser "^20.2.2"
-
-yn@*:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/yn/-/yn-5.0.0.tgz#63fc2e2e0056cf294397eed6ad4a3fbdf707f26f"
-  integrity sha512-+l37+9TyGEsyxGLaTg6QgYy5KnOp74ZZl4dPFLQpBWSkO99uBC5jnS0pOGwXFViPbiaEtWbParH2KrgWWF2duQ==
 
 yn@^4.0.0:
   version "4.0.0"
