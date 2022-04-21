@@ -22,24 +22,15 @@ export type NodeInfo = {
  * In both cases it returns Connection instances that produce and consume StellarMessages
  */
 export class Node extends EventEmitter {
-	protected logger!: P.Logger;
-	public keyPair: Keypair;
-	protected connectionAuthentication: ConnectionAuthentication;
-	protected config: NodeConfig;
 	protected server?: Server;
 
 	constructor(
-		config: NodeConfig,
-		keyPair: Keypair,
-		connectionAuthentication: ConnectionAuthentication,
-		logger: P.Logger
+		private config: NodeConfig,
+		public keyPair: Keypair,
+		private readonly connectionAuthentication: ConnectionAuthentication,
+		private readonly logger: P.Logger
 	) {
 		super();
-		this.config = config;
-		this.keyPair = keyPair;
-		this.logger = logger;
-		this.connectionAuthentication = connectionAuthentication;
-
 		this.logger.info('Using public key: ' + this.keyPair.publicKey());
 	}
 
@@ -63,7 +54,8 @@ export class Node extends EventEmitter {
 				listeningPort: this.config.listeningPort,
 				remoteCalledUs: false,
 				receiveTransactionMessages: this.config.receiveTransactionMessages,
-				receiveSCPMessages: this.config.receiveSCPMessages
+				receiveSCPMessages: this.config.receiveSCPMessages,
+				maxFloodMessageCapacity: this.config.maxFloodMessageCapacity
 			},
 			socket,
 			this.connectionAuthentication,
@@ -122,7 +114,8 @@ export class Node extends EventEmitter {
 				listeningPort: this.config.listeningPort,
 				remoteCalledUs: true,
 				receiveTransactionMessages: this.config.receiveTransactionMessages,
-				receiveSCPMessages: this.config.receiveSCPMessages
+				receiveSCPMessages: this.config.receiveSCPMessages,
+				maxFloodMessageCapacity: this.config.maxFloodMessageCapacity
 			},
 			socket,
 			this.connectionAuthentication,

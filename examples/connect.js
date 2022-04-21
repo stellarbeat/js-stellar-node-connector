@@ -31,29 +31,31 @@ function connect() {
 			connectedPublicKey = publicKey;
 			//connection.sendStellarMessage(xdr.StellarMessage.getScpState(0));
 		})
-		.on('data', (data) => {
-			switch (data.switch()) {
+		.on('data', (stellarMessageJob) => {
+			const stellarMessage = stellarMessageJob.stellarMessage;
+			switch (stellarMessage.switch()) {
 				case xdr.MessageType.scpMessage():
 					let publicKey = StrKey.encodeEd25519PublicKey(
-						data.envelope().statement().nodeId().value()
+						stellarMessage.envelope().statement().nodeId().value()
 					).toString();
 					console.log(
 						publicKey +
 							' sent StellarMessage of type ' +
-							data.envelope().statement().pledges().switch().name +
+							stellarMessage.envelope().statement().pledges().switch().name +
 							' for ledger ' +
-							data.envelope().statement().slotIndex().toString()
+							stellarMessage.envelope().statement().slotIndex().toString()
 					);
-					console.log(data.toXDR('base64'));
+					//console.log(stellarMessage.toXDR('base64'));
 					break;
 				default:
 					console.log(
-						'rcv StellarMessage of type ' +
-							data.switch().name +
-							': ' +
-							data.toXDR('base64')
+						'rcv StellarMessage of type ' + stellarMessage.switch().name //+
+						//': ' +
+						//	stellarMessage.toXDR('base64')
 					);
+					break;
 			}
+			stellarMessageJob.done();
 		})
 		.on('error', (err) => {
 			console.log(err);

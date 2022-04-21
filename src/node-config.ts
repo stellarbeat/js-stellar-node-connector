@@ -11,6 +11,7 @@ export type NodeConfig = {
 	privateKey?: string;
 	receiveTransactionMessages: boolean;
 	receiveSCPMessages: boolean;
+	maxFloodMessageCapacity: number;
 };
 
 export function getConfigFromEnv(): NodeConfig {
@@ -30,6 +31,8 @@ export function getConfigFromEnv(): NodeConfig {
 		? process.env['NETWORK']
 		: Networks.PUBLIC;
 
+	const maxFloodMessageCapacity = getNumberFromEnv('MAX_FLOOD_CAPACITY', 200);
+
 	return {
 		network: networkString,
 		nodeInfo: {
@@ -45,7 +48,8 @@ export function getConfigFromEnv(): NodeConfig {
 		receiveTransactionMessages:
 			receiveTransactionMessages !== undefined
 				? receiveTransactionMessages
-				: true
+				: true,
+		maxFloodMessageCapacity: maxFloodMessageCapacity
 	};
 }
 
