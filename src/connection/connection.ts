@@ -573,7 +573,7 @@ export class Connection extends Duplex {
 		message: StellarMessage,
 		cb?: (error: Error | null | undefined) => void
 	): boolean {
-		this.logger.info(
+		this.logger.debug(
 			{ remote: this.remoteAddress, local: this.localAddress },
 			'send ' + message.switch().name
 		);
