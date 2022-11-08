@@ -4400,10 +4400,9 @@ stack-utils@^2.0.3:
   dependencies:
     escape-string-regexp "^2.0.0"
 
-stellar-base@^8.0.0:
-  version "8.0.0"
-  resolved "https://registry.yarnpkg.com/stellar-base/-/stellar-base-8.0.0.tgz#619e5fb7951fa8abb26322e51e611169a5d1cf62"
-  integrity sha512-MH0V94Hn/Ekq/yZxd+EQijkvfU+21zuqJAyEP8X+fhRR0IQYwGNByY003oLqIkgwqXotyofEQ76W5MoNFZmlpw==
+"stellar-base@https://github.com/pieterjan84/js-stellar-base":
+  version "8.2.1"
+  resolved "https://github.com/pieterjan84/js-stellar-base#d5fd1953faa168804666ffdf3b4ee3a018097eca"
   dependencies:
     base32.js "^0.1.0"
     bignumber.js "^4.0.0"

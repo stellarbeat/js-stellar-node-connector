@@ -324,7 +324,7 @@ export class Connection extends Duplex {
 		);
 
 		if (
-			messageType === MessageType.transaction().value &&
+			([MessageType.transaction().value, MessageType.floodAdvert().value] as number[]).includes(messageType) &&
 			!this.receiveTransactionMessages
 		) {
 			this.increaseRemoteSequenceByOne();
@@ -539,7 +539,7 @@ export class Connection extends Duplex {
 			'Handshake Completed'
 		);
 		this.handshakeState = HandshakeState.COMPLETED;
-		this.socket.setTimeout(30000);
+		this.socket.setTimeout(10000);
 
 		this.emit('connect', this.remotePublicKey, this.remoteNodeInfo);
 		this.emit('ready');
@@ -573,7 +573,7 @@ export class Connection extends Duplex {
 		message: StellarMessage,
 		cb?: (error: Error | null | undefined) => void
 	): boolean {
-		this.logger.debug(
+		this.logger.info(
 			{ remote: this.remoteAddress, local: this.localAddress },
 			'send ' + message.switch().name
 		);

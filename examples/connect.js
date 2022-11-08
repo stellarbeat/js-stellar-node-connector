@@ -45,7 +45,11 @@ function connect() {
 							' for ledger ' +
 							stellarMessage.envelope().statement().slotIndex().toString()
 					);
-					//console.log(stellarMessage.toXDR('base64'));
+					/*if(stellarMessage.envelope().statement().pledges().switch() === xdr.ScpStatementType.scpStExternalize()){
+						const value = stellarMessage.envelope().statement().pledges().externalize().commit().value();
+						const closeTime = xdr.StellarValue.fromXDR(value).closeTime().toXDR().readBigUInt64BE();
+						console.log(new Date(1000 * Number(closeTime)));
+					}*/
 					break;
 				default:
 					console.log(

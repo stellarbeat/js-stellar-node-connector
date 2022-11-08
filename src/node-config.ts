@@ -31,7 +31,7 @@ export function getConfigFromEnv(): NodeConfig {
 		? process.env['NETWORK']
 		: Networks.PUBLIC;
 
-	const maxFloodMessageCapacity = getNumberFromEnv('MAX_FLOOD_CAPACITY', 200);
+	const maxFloodMessageCapacity = getNumberFromEnv('MAX_FLOOD_CAPACITY', 2000);
 
 	return {
 		network: networkString,

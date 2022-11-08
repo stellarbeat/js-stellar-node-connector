@@ -7,7 +7,7 @@ import { ConnectionAuthentication } from './connection-authentication';
 export default {
 	createAuthMessage: function (): Result<xdr.StellarMessage, Error> {
 		try {
-			const auth = new xdr.Auth({ unused: 1 });
+			const auth = new xdr.Auth({ flags: 100 });
 			// @ts-ignore
 			const authMessage = new xdr.StellarMessage.auth(auth) as StellarMessage;
 			return ok(authMessage);
