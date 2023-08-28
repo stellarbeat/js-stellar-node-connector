@@ -1,8 +1,8 @@
 import { NodeConfig } from './node-config';
-import * as P from 'pino';
 import { Node } from './node';
 import { FastSigning, hash, Keypair } from 'stellar-base';
 import { ConnectionAuthentication } from './connection/connection-authentication';
+import {pino} from "pino";
 
 export { Node } from './node';
 export { Connection } from './connection/connection';
@@ -32,9 +32,9 @@ export {
 	QuorumSetDTO
 } from './stellar-message-service'; //todo: separate package?
 
-export function createNode(config: NodeConfig, logger?: P.Logger): Node {
+export function createNode(config: NodeConfig, logger?: pino.Logger): Node {
 	if (!logger) {
-		logger = P({
+		logger = pino({
 			level: process.env.LOG_LEVEL || 'info',
 			base: undefined
 		});

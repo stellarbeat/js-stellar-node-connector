@@ -7,7 +7,7 @@ import { ConnectionAuthentication } from './connection/connection-authentication
 import { NodeConfig } from './node-config';
 import { EventEmitter } from 'events';
 import { Server, Socket } from 'net';
-import * as P from 'pino';
+import {pino} from 'pino'
 
 export type NodeInfo = {
 	ledgerVersion: number;
@@ -28,7 +28,7 @@ export class Node extends EventEmitter {
 		private config: NodeConfig,
 		public keyPair: Keypair,
 		private readonly connectionAuthentication: ConnectionAuthentication,
-		private readonly logger: P.Logger
+		private readonly logger: pino.Logger
 	) {
 		super();
 		this.logger.info('Using public key: ' + this.keyPair.publicKey());
