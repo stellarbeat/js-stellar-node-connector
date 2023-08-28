@@ -33,6 +33,7 @@ function connect() {
 		})
 		.on('data', (stellarMessageJob) => {
 			const stellarMessage = stellarMessageJob.stellarMessage;
+			console.log(stellarMessage.toXDR('base64'))
 			switch (stellarMessage.switch()) {
 				case xdr.MessageType.scpMessage():
 					let publicKey = StrKey.encodeEd25519PublicKey(

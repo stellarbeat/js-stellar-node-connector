@@ -33,7 +33,7 @@
     "neverthrow": "^4.2.2",
     "pino": "^6.12.0",
     "sodium-native": "^3.2.1",
-    "stellar-base": "https://github.com/pieterjan84/js-stellar-base",
+    "stellar-base": "9.0.0",
     "workerpool": "^6.1.5",
     "yn": "^4.0.0"
   },
