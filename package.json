@@ -10,6 +10,7 @@
     "preversion": "yarn run build",
     "build": "tsc --declaration",
     "examples:connect": "npm run build; node examples/connect",
+    "examples:scp": "npm run build; node examples/scp",
     "test": "jest"
   },
   "types": "lib/index.d.ts",

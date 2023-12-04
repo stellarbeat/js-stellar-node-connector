@@ -22,6 +22,7 @@ export {
 	ScpNomination
 } from './scp-statement-dto';
 export { getConfigFromEnv } from './node-config';
+export { ScpReader } from "./scp-reader";
 export {
 	getPublicKeyStringFromBuffer,
 	createSCPEnvelopeSignature,
