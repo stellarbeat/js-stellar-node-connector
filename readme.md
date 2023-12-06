@@ -100,9 +100,11 @@ Checkout the NodeConf class. The following env parameters are available:
 * LISTENING_PORT=11625
 * RECEIVE_TRANSACTION_MSG=true //will the Connection class emit Transaction messages
 * RECEIVE_SCP_MSG=true //will the Connection class emit SCP messages
-* MAX_FLOOD_CAPACITY=200 //flow control of flood messages. E.g. 200 flood messages need to be processed before peer
-  sends more. Flow control is enabled when local and remote nodes have an overlay version >= 20
-
+* PEER_FLOOD_READING_CAPACITY=200 //max number of messages that can be processed simultaneously from a peer
+* FLOW_CONTROL_SEND_MORE_BATCH_SIZE=40 //number of messages that can be received before sending a FLOW_CONTROL_SEND_MORE and reclaiming flood reading capacity
+* PEER_FLOOD_READING_CAPACITY_BYTES=3000000 //max number of bytes that can be processed simultaneously from a peer
+* FLOW_CONTROL_SEND_MORE_BATCH_SIZE_BYTES=1000000 //number of bytes that can be received before sending a FLOW_CONTROL_SEND_MORE and reclaiming flood reading capacity
+//see [stellar core config](https://github.com/stellar/stellar-core/blob/6177299100b114aa108584053414371f38aebf53/docs/stellar-core_example.cfg#L485) for info on flood control parameters
 ### Example: Connect to a node
 
 You can connect to any node with the example script:
