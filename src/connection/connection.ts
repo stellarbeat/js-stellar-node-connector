@@ -571,7 +571,7 @@ export class Connection extends Duplex {
 			authMessage.flags()
 		);
 		if (this.flowController.isFlowControlBytesEnabled()) {
-			this.logger.info(
+			this.logger.debug(
 				{ remote: this.remoteAddress, local: this.localAddress },
 				'Flow control in bytes enabled'
 			);
