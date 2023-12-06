@@ -7,7 +7,8 @@ import { ConnectionAuthentication } from './connection/connection-authentication
 import { NodeConfig } from './node-config';
 import { EventEmitter } from 'events';
 import { Server, Socket } from 'net';
-import {pino} from 'pino'
+import { pino } from 'pino';
+import { FlowController } from './connection/flow-controller';
 
 export type NodeInfo = {
 	ledgerVersion: number;
@@ -39,6 +40,12 @@ export class Node extends EventEmitter {
 	 */
 	connectTo(ip: string, port: number): Connection {
 		const socket = new net.Socket();
+		const flowController = new FlowController(
+			this.config.peerFloodReadingCapacity,
+			this.config.flowControlSendMoreBatchSize,
+			this.config.peerFloodReadingCapacityBytes,
+			this.config.flowControlSendMoreBatchSizeBytes
+		);
 
 		const connection = new Connection(
 			{
@@ -54,11 +61,11 @@ export class Node extends EventEmitter {
 				listeningPort: this.config.listeningPort,
 				remoteCalledUs: false,
 				receiveTransactionMessages: this.config.receiveTransactionMessages,
-				receiveSCPMessages: this.config.receiveSCPMessages,
-				maxFloodMessageCapacity: this.config.maxFloodMessageCapacity
+				receiveSCPMessages: this.config.receiveSCPMessages
 			},
 			socket,
 			this.connectionAuthentication,
+			flowController,
 			this.logger
 		);
 
@@ -100,6 +107,12 @@ export class Node extends EventEmitter {
 		if (socket.remoteAddress === undefined || socket.remotePort === undefined)
 			return; //this can happen when socket is immediately destroyed
 
+		const flowController = new FlowController(
+			this.config.peerFloodReadingCapacity,
+			this.config.flowControlSendMoreBatchSize,
+			this.config.peerFloodReadingCapacityBytes,
+			this.config.flowControlSendMoreBatchSizeBytes
+		);
 		const connection = new Connection(
 			{
 				ip: socket.remoteAddress,
@@ -114,11 +127,11 @@ export class Node extends EventEmitter {
 				listeningPort: this.config.listeningPort,
 				remoteCalledUs: true,
 				receiveTransactionMessages: this.config.receiveTransactionMessages,
-				receiveSCPMessages: this.config.receiveSCPMessages,
-				maxFloodMessageCapacity: this.config.maxFloodMessageCapacity
+				receiveSCPMessages: this.config.receiveSCPMessages
 			},
 			socket,
 			this.connectionAuthentication,
+			flowController,
 			this.logger
 		);
 		this.emit('connection', connection);

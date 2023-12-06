@@ -11,7 +11,10 @@ export type NodeConfig = {
 	privateKey?: string;
 	receiveTransactionMessages: boolean;
 	receiveSCPMessages: boolean;
-	maxFloodMessageCapacity: number;
+	peerFloodReadingCapacity: number;
+	flowControlSendMoreBatchSize: number;
+	peerFloodReadingCapacityBytes: number;
+	flowControlSendMoreBatchSizeBytes: number;
 };
 
 export function getConfigFromEnv(): NodeConfig {
@@ -31,7 +34,22 @@ export function getConfigFromEnv(): NodeConfig {
 		? process.env['NETWORK']
 		: Networks.PUBLIC;
 
-	const maxFloodMessageCapacity = getNumberFromEnv('MAX_FLOOD_CAPACITY', 2000);
+	const peerFloodReadingCapacity = getNumberFromEnv(
+		'PEER_FLOOD_READING_CAPACITY',
+		200
+	);
+	const flowControlSendMoreBatchSize = getNumberFromEnv(
+		'FLOW_CONTROL_SEND_MORE_BATCH_SIZE',
+		40
+	);
+	const peerFloodReadingCapacityBytes = getNumberFromEnv(
+		'PEER_FLOOD_READING_CAPACITY_BYTES',
+		300000
+	);
+	const flowControlSendMoreBatchSizeBytes = getNumberFromEnv(
+		'FLOW_CONTROL_SEND_MORE_BATCH_SIZE_BYTES',
+		100000
+	);
 
 	return {
 		network: networkString,
@@ -49,7 +67,10 @@ export function getConfigFromEnv(): NodeConfig {
 			receiveTransactionMessages !== undefined
 				? receiveTransactionMessages
 				: true,
-		maxFloodMessageCapacity: maxFloodMessageCapacity
+		peerFloodReadingCapacity: peerFloodReadingCapacity,
+		flowControlSendMoreBatchSize: flowControlSendMoreBatchSize,
+		peerFloodReadingCapacityBytes: peerFloodReadingCapacityBytes,
+		flowControlSendMoreBatchSizeBytes: flowControlSendMoreBatchSizeBytes
 	};
 }
 

@@ -36,7 +36,7 @@
     "neverthrow": "^4.2.2",
     "pino": "^8.15.0",
     "sodium-native": "^3.2.1",
-    "stellar-base": "9.0.0",
+    "stellar-base": "10.0.0-beta.4",
     "workerpool": "^6.1.5",
     "yn": "^4.0.0"
   },

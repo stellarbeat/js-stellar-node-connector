@@ -43,7 +43,6 @@ export type ConnectionOptions = {
 	remoteCalledUs: boolean;
 	receiveTransactionMessages: boolean;
 	receiveSCPMessages: boolean;
-	maxFloodMessageCapacity: number;
 };
 
 export type StellarMessageWork = {
@@ -86,12 +85,11 @@ export class Connection extends Duplex {
 	public remotePublicKey?: string;
 	public remotePublicKeyRaw?: Buffer;
 
-	private flowController: FlowController;
-
 	constructor(
 		connectionOptions: ConnectionOptions,
 		private socket: Socket,
 		private readonly connectionAuthentication: ConnectionAuthentication,
+		private flowController: FlowController,
 		private logger: P.Logger
 	) {
 		super({ objectMode: true });
@@ -111,10 +109,6 @@ export class Connection extends Duplex {
 		this.receiveSCPMessages = connectionOptions.receiveSCPMessages;
 		this.receiveTransactionMessages =
 			connectionOptions.receiveTransactionMessages;
-
-		this.flowController = new FlowController(
-			connectionOptions.maxFloodMessageCapacity
-		);
 
 		this.socket.on('close', (hadError) => this.emit('close', hadError));
 		this.socket.on('connect', () => this.onConnected());
@@ -303,6 +297,9 @@ export class Connection extends Duplex {
 		}
 
 		const authenticatedMessageV0XDR = result.value;
+
+		const stellarMessageSize = data.length - 32 - 12;
+
 		const messageType = authenticatedMessageV0XDR.messageTypeXDR.readInt32BE(0);
 		this.logger.trace(
 			{
@@ -324,11 +321,21 @@ export class Connection extends Duplex {
 		);
 
 		if (
-			([MessageType.transaction().value, MessageType.floodAdvert().value] as number[]).includes(messageType) &&
+			(
+				[
+					MessageType.transaction().value,
+					MessageType.floodAdvert().value
+				] as number[]
+			).includes(messageType) &&
 			!this.receiveTransactionMessages
 		) {
 			this.increaseRemoteSequenceByOne();
-			this.doneProcessing(MessageType.transaction());
+			this.doneProcessing(
+				messageType === MessageType.transaction().value
+					? MessageType.transaction()
+					: MessageType.floodAdvert(),
+				stellarMessageSize
+			);
 			return ok(true);
 		}
 
@@ -361,8 +368,10 @@ export class Connection extends Duplex {
 			else return err(new Error('Error converting xdr to StellarMessage'));
 		}
 
-		const handleStellarMessageResult =
-			this.handleStellarMessage(stellarMessage);
+		const handleStellarMessageResult = this.handleStellarMessage(
+			stellarMessage,
+			stellarMessageSize
+		);
 		if (handleStellarMessageResult.isErr()) {
 			return err(handleStellarMessageResult.error);
 		}
@@ -444,7 +453,8 @@ export class Connection extends Duplex {
 
 	//return true if handling was successful, false if consumer was overloaded, Error on error
 	protected handleStellarMessage(
-		stellarMessage: StellarMessage
+		stellarMessage: StellarMessage,
+		stellarMessageSize: number
 	): Result<boolean, Error> {
 		switch (stellarMessage.switch()) {
 			case MessageType.hello(): {
@@ -467,9 +477,16 @@ export class Connection extends Duplex {
 			}
 
 			case MessageType.auth(): {
-				const completedHandshakeResult = this.completeHandshake();
+				const completedHandshakeResult = this.completeHandshake(
+					stellarMessage.auth()
+				);
 				if (completedHandshakeResult.isErr())
 					return err(completedHandshakeResult.error);
+				return ok(true);
+			}
+
+			case MessageType.sendMoreExtended(): {
+				this.sendMoreMsgReceivedCounter++; //server send more functionality not implemented; only for testing purposes;
 				return ok(true);
 			}
 
@@ -491,7 +508,8 @@ export class Connection extends Duplex {
 				return ok(
 					this.push({
 						stellarMessage: stellarMessage,
-						done: () => this.doneProcessing(stellarMessage.switch())
+						done: () =>
+							this.doneProcessing(stellarMessage.switch(), stellarMessageSize)
 					} as StellarMessageWork)
 				);
 		}
@@ -528,7 +546,7 @@ export class Connection extends Duplex {
 		return ok(undefined);
 	}
 
-	protected completeHandshake(): Result<void, Error> {
+	protected completeHandshake(authMessage: xdr.Auth): Result<void, Error> {
 		if (this.remoteCalledUs) {
 			const authResult = this.sendAuthMessage();
 			if (authResult.isErr()) return err(authResult.error);
@@ -547,22 +565,33 @@ export class Connection extends Duplex {
 		if (!this.remoteNodeInfo)
 			throw new Error('No remote overlay version after handshake');
 
-		this.flowController.enableIfValidOverlayVersions(
+		const stellarMessageOrNull = this.flowController.start(
 			this.localNodeInfo.overlayVersion,
-			this.remoteNodeInfo.overlayVersion
+			this.remoteNodeInfo.overlayVersion,
+			authMessage.flags()
 		);
-		this.doneProcessing();
+		if (this.flowController.isFlowControlBytesEnabled()) {
+			this.logger.info(
+				{ remote: this.remoteAddress, local: this.localAddress },
+				'Flow control in bytes enabled'
+			);
+		}
+		if (stellarMessageOrNull !== null)
+			this.sendStellarMessage(stellarMessageOrNull);
 
 		return ok(undefined);
 	}
 
-	protected doneProcessing(messageType?: MessageType): void {
-		if (!this.flowController.sendMore(messageType)) return;
-
-		const sendMore = new xdr.SendMore({
-			numMessages: this.flowController.maxFloodMessageCapacity
-		});
-		this.sendStellarMessage(xdr.StellarMessage.sendMore(sendMore));
+	protected doneProcessing(
+		messageType: MessageType,
+		stellarMessageSize: number
+	): void {
+		const stellarMessageOrNull = this.flowController.sendMore(
+			messageType,
+			stellarMessageSize
+		);
+		if (stellarMessageOrNull !== null)
+			this.sendStellarMessage(stellarMessageOrNull);
 	}
 
 	/**
@@ -586,7 +615,9 @@ export class Connection extends Duplex {
 			'send auth'
 		);
 
-		const authMessageResult = xdrMessageCreator.createAuthMessage();
+		const authMessageResult = xdrMessageCreator.createAuthMessage(
+			this.localNodeInfo.overlayVersion >= 28 //remove when min overlay version is 28
+		);
 		if (authMessageResult.isErr()) return err(authMessageResult.error);
 
 		this.write(authMessageResult.value);

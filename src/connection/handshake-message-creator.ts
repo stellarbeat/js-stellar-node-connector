@@ -5,9 +5,11 @@ import Hello = xdr.Hello;
 import { ConnectionAuthentication } from './connection-authentication';
 
 export default {
-	createAuthMessage: function (): Result<xdr.StellarMessage, Error> {
+	createAuthMessage: function (
+		flowControlInBytes = false
+	): Result<xdr.StellarMessage, Error> {
 		try {
-			const auth = new xdr.Auth({ flags: 100 });
+			const auth = new xdr.Auth({ flags: flowControlInBytes ? 200 : 100 });
 			// @ts-ignore
 			const authMessage = new xdr.StellarMessage.auth(auth) as StellarMessage;
 			return ok(authMessage);

@@ -13,11 +13,13 @@ let connectionToNodeA: Connection;
 
 beforeAll(() => {
 	const configA = getConfigFromEnv();
-	configA.maxFloodMessageCapacity = 2;
-	configA.nodeInfo.overlayVersion = 20;
+	configA.peerFloodReadingCapacity = 2;
+	configA.flowControlSendMoreBatchSize = 2;
+	configA.nodeInfo.overlayVersion = 30;
 	const configB = getConfigFromEnv();
-	configB.maxFloodMessageCapacity = 2;
-	configB.nodeInfo.overlayVersion = 20;
+	configB.peerFloodReadingCapacity = 2;
+	configB.flowControlSendMoreBatchSize = 2;
+	configB.nodeInfo.overlayVersion = 30;
 	nodeA = createNode(configA); //random public key
 	nodeB = createNode(configB); //other random public key
 	nodeA.acceptIncomingConnections(11623, '127.0.0.1');
@@ -56,6 +58,10 @@ test('connect', (done) => {
 		.on('data', (data: StellarMessageWork) => {
 			data.done();
 			pingPongCounter++;
+			console.log(
+				pingPongCounter,
+				myConnectionToNodeB.sendMoreMsgReceivedCounter
+			);
 			if (
 				pingPongCounter === 100 &&
 				myConnectionToNodeB.sendMoreMsgReceivedCounter === 50
