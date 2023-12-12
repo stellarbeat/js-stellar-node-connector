@@ -58,10 +58,6 @@ test('connect', (done) => {
 		.on('data', (data: StellarMessageWork) => {
 			data.done();
 			pingPongCounter++;
-			console.log(
-				pingPongCounter,
-				myConnectionToNodeB.sendMoreMsgReceivedCounter
-			);
 			if (
 				pingPongCounter === 100 &&
 				myConnectionToNodeB.sendMoreMsgReceivedCounter === 50

@@ -1,24 +1,32 @@
-import {xdr} from "stellar-base";
-import {parseAuthenticatedMessageXDR} from "../src/connection/xdr-message-handler";
+import { xdr } from '@stellar/stellar-base';
+import { parseAuthenticatedMessageXDR } from '../src/connection/xdr-message-handler';
 
 test('parseAuthenticatedMessageXDR', () => {
-    const xdrBuffer = Buffer.from("AAAAAAAAAAAAAAA7AAAACwAAAACMHUtKNgEX1QDfz4zesWaxmhLg9Le806GgxemeQfaXmQAAAAACKDOuAAAAAzQaCq4p6tLHpdfwGhnlyX9dMUP70r4Dm98Td6YvKnhoAAAAAQAAAJg1D82tsvx59BI2BldZq12xYzdrhUkIflWnRwbiJsoMUgAAAABg4A0jAAAAAAAAAAEAAAAAUwoi9HcvJrwUn5w15omNdNffAJKoHHDdZh+2c+8VUd4AAABAB5/NoeG4iJJitcTDJvdhDLaLL9FSUHodRXvMEjbGKeDSkSXDgl+q+VvDXenwQNOOhLg112bsviGwh61ci4HnAgAAAAEAAACYNQ/NrbL8efQSNgZXWatdsWM3a4VJCH5Vp0cG4ibKDFIAAAAAYOANIwAAAAAAAAABAAAAAFMKIvR3Lya8FJ+cNeaJjXTX3wCSqBxw3WYftnPvFVHeAAAAQAefzaHhuIiSYrXEwyb3YQy2iy/RUlB6HUV7zBI2xing0pElw4Jfqvlbw13p8EDTjoS4Nddm7L4hsIetXIuB5wIAAABAyN92d7osuHXtUWHoEQzSRH5f9h6oEQAGK02b4CO4bQchmpbwbqGQLdbD9psFpamuLrDK+QJiBuKw3PVnMNlMDA9Ws6xvU3NyJ/OBsg2EZicl61zCYxrQXQ4Qq/eXI+wT", 'base64');
+	const xdrBuffer = Buffer.from(
+		'AAAAAAAAAAAAAAA7AAAACwAAAACMHUtKNgEX1QDfz4zesWaxmhLg9Le806GgxemeQfaXmQAAAAACKDOuAAAAAzQaCq4p6tLHpdfwGhnlyX9dMUP70r4Dm98Td6YvKnhoAAAAAQAAAJg1D82tsvx59BI2BldZq12xYzdrhUkIflWnRwbiJsoMUgAAAABg4A0jAAAAAAAAAAEAAAAAUwoi9HcvJrwUn5w15omNdNffAJKoHHDdZh+2c+8VUd4AAABAB5/NoeG4iJJitcTDJvdhDLaLL9FSUHodRXvMEjbGKeDSkSXDgl+q+VvDXenwQNOOhLg112bsviGwh61ci4HnAgAAAAEAAACYNQ/NrbL8efQSNgZXWatdsWM3a4VJCH5Vp0cG4ibKDFIAAAAAYOANIwAAAAAAAAABAAAAAFMKIvR3Lya8FJ+cNeaJjXTX3wCSqBxw3WYftnPvFVHeAAAAQAefzaHhuIiSYrXEwyb3YQy2iy/RUlB6HUV7zBI2xing0pElw4Jfqvlbw13p8EDTjoS4Nddm7L4hsIetXIuB5wIAAABAyN92d7osuHXtUWHoEQzSRH5f9h6oEQAGK02b4CO4bQchmpbwbqGQLdbD9psFpamuLrDK+QJiBuKw3PVnMNlMDA9Ws6xvU3NyJ/OBsg2EZicl61zCYxrQXQ4Qq/eXI+wT',
+		'base64'
+	);
 
-    const result = parseAuthenticatedMessageXDR(xdrBuffer);
-    expect(result.isOk()).toBeTruthy();
-    if(result.isOk()){
-        //@ts-ignore
-        const messageType = xdr.MessageType.fromXDR(result.value.messageTypeXDR);
-        expect(messageType).toEqual(xdr.MessageType.scpMessage());
-        expect(xdr.ScpEnvelope.fromXDR(result.value.stellarMessageXDR)).toBeDefined();
-    }
-})
+	const result = parseAuthenticatedMessageXDR(xdrBuffer);
+	expect(result.isOk()).toBeTruthy();
+	if (result.isOk()) {
+		//@ts-ignore
+		const messageType = xdr.MessageType.fromXDR(result.value.messageTypeXDR);
+		expect(messageType).toEqual(xdr.MessageType.scpMessage());
+		expect(
+			xdr.ScpEnvelope.fromXDR(result.value.stellarMessageXDR)
+		).toBeDefined();
+	}
+});
 
 test('handleInvalidXdr', () => {
-    const xdrBuffer = Buffer.from("3a4VJCH5Vp0cG4ibKDFIAAAAAYOANIwAAAAAAAAABAAAAAFMKIvR3Lya8FJ+cNeaJjXTX3wCSqBxw3WYftnPvFVHeAAAAQAefzaHhuIiSYrXEwyb3YQy2iy/RUlB6HUV7zBI2xing0pElw4Jfqvlbw13p8EDTjoS4Nddm7L4hsIetXIuB5wIAAABAyN92d7osuHXtUWHoEQzSRH5f9h6oEQAGK02b4CO4bQchmpbwbqGQLdbD9psFpamuLrDK+QJiBuKw3PVnMNlMDA9Ws6xvU3NyJ/OBsg2EZicl61zCYxrQXQ4Qq/eXI+wT", 'base64');
+	const xdrBuffer = Buffer.from(
+		'3a4VJCH5Vp0cG4ibKDFIAAAAAYOANIwAAAAAAAAABAAAAAFMKIvR3Lya8FJ+cNeaJjXTX3wCSqBxw3WYftnPvFVHeAAAAQAefzaHhuIiSYrXEwyb3YQy2iy/RUlB6HUV7zBI2xing0pElw4Jfqvlbw13p8EDTjoS4Nddm7L4hsIetXIuB5wIAAABAyN92d7osuHXtUWHoEQzSRH5f9h6oEQAGK02b4CO4bQchmpbwbqGQLdbD9psFpamuLrDK+QJiBuKw3PVnMNlMDA9Ws6xvU3NyJ/OBsg2EZicl61zCYxrQXQ4Qq/eXI+wT',
+		'base64'
+	);
 
-    expect(parseAuthenticatedMessageXDR(xdrBuffer).isErr()).toBeTruthy();
-})
+	expect(parseAuthenticatedMessageXDR(xdrBuffer).isErr()).toBeTruthy();
+});
 
 /*test('handleNominateSCPMessageXDR', () => {
     let xdr = Buffer.from('AAAAAAFdGFUq2t7rTo0wWu9k/6rxa0T+pf6CHmBj2vO56O1XAAAAAAIpQW4AAAADNBoKrinq0sel1/AaGeXJf10xQ/vSvgOb3xN3pi8qeGgAAAABAAAAmDfNPDC76wNcNIfI9Kh/sIZzyLSqM+/2Q7ynrnWNb75gAAAAAGDlyDEAAAAAAAAAAQAAAACMHUtKNgEX1QDfz4zesWaxmhLg9Le806GgxemeQfaXmQAAAEAO4K/dJZruXyv6ypWMXhk9fy8W5Ujq8znMPy8EncZQepTRzYvqyUU4PFamzp99lly+yDt4nqgov4VZvYVVDXsPAAAAAAAAAEBpJ3HZ9TunMXViASRj5RrWlNSjA6hZZeClRGo+SYHRwq8STmObzvUvOKfgF8VTfvyqZ/LCM9FPD+iQoG2gHssB', 'base64');
