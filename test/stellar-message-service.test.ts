@@ -1,5 +1,5 @@
 import { getQuorumSetFromMessage, verifySCPEnvelopeSignature } from '../src';
-import { hash, Keypair, Networks, xdr } from 'stellar-base';
+import { hash, Keypair, Networks, xdr } from '@stellar/stellar-base';
 import { createDummyExternalizeMessage } from '../fixtures/stellar-message.fixtures';
 
 it('should create and verify envelope signatures correctly', () => {

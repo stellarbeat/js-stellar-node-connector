@@ -1,8 +1,8 @@
 import { NodeConfig } from './node-config';
 import { Node } from './node';
-import { FastSigning, hash, Keypair } from 'stellar-base';
+import { FastSigning, hash, Keypair } from '@stellar/stellar-base';
 import { ConnectionAuthentication } from './connection/connection-authentication';
-import {pino} from "pino";
+import { pino } from 'pino';
 
 export { Node } from './node';
 export { Connection } from './connection/connection';
@@ -22,7 +22,7 @@ export {
 	ScpNomination
 } from './scp-statement-dto';
 export { getConfigFromEnv } from './node-config';
-export { ScpReader } from "./scp-reader";
+export { ScpReader } from './scp-reader';
 export {
 	getPublicKeyStringFromBuffer,
 	createSCPEnvelopeSignature,

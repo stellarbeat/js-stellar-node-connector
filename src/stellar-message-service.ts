@@ -1,4 +1,4 @@
-import { StrKey, xdr } from 'stellar-base';
+import { StrKey, xdr } from '@stellar/stellar-base';
 import { ok, err, Result } from 'neverthrow';
 import { createSignature, verifySignature } from './crypto-helper';
 import ScpEnvelope = xdr.ScpEnvelope;

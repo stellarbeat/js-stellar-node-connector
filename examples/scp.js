@@ -1,10 +1,10 @@
-const { xdr, StrKey } = require('stellar-base');
+const { xdr, StrKey } = require('@stellar/stellar-base');
 const { createNode } = require('../lib');
 const getConfigFromEnv = require('../lib').getConfigFromEnv;
 const http = require('http');
 const https = require('https');
-const {ScpReader} = require("../lib/scp-reader");
-const pino = require('pino')()
+const { ScpReader } = require('../lib/scp-reader');
+const pino = require('pino')();
 let node = createNode(getConfigFromEnv());
 
 connect();
@@ -26,12 +26,14 @@ async function connect() {
 	}
 
 	const nodes = await fetchData('https://api.stellarbeat.io/v1/nodes');
-	const nodeNames = new Map(nodes.map((node) => {
-		return [node.publicKey, node.name ?? node.publicKey];
-	}));
+	const nodeNames = new Map(
+		nodes.map((node) => {
+			return [node.publicKey, node.name ?? node.publicKey];
+		})
+	);
 
-	const scpReader = new ScpReader(pino)
-	scpReader.read(node, ip, port, nodeNames)
+	const scpReader = new ScpReader(pino);
+	scpReader.read(node, ip, port, nodeNames);
 }
 
 function fetchData(url) {

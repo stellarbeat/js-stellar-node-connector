@@ -1,5 +1,5 @@
 import { Transform, TransformCallback } from 'stream';
-import { xdr } from 'stellar-base';
+import { xdr } from '@stellar/stellar-base';
 import StellarMessage = xdr.StellarMessage;
 
 export type MessageTypeName = string;

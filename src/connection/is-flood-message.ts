@@ -1,8 +1,11 @@
-import { xdr } from 'stellar-base';
+import { xdr } from '@stellar/stellar-base';
 import MessageType = xdr.MessageType;
 
 export function isFloodMessage(messageType: MessageType): boolean {
-	return (
-		[MessageType.scpMessage(), MessageType.floodAdvert(), MessageType.transaction(), MessageType.floodDemand()].includes(messageType)
-	);
+	return [
+		MessageType.scpMessage(),
+		MessageType.floodAdvert(),
+		MessageType.transaction(),
+		MessageType.floodDemand()
+	].includes(messageType);
 }

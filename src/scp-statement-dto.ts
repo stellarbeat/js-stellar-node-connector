@@ -1,4 +1,4 @@
-import { StrKey, xdr } from 'stellar-base';
+import { StrKey, xdr } from '@stellar/stellar-base';
 import { err, ok, Result } from 'neverthrow';
 
 export type ScpStatementPledges =

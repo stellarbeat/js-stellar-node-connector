@@ -1,5 +1,5 @@
 import { ConnectionAuthentication } from '../src/connection/connection-authentication';
-import { hash, Keypair, Networks, xdr } from 'stellar-base';
+import { hash, Keypair, Networks, xdr } from '@stellar/stellar-base';
 import xdrMessageCreator from '../src/connection/handshake-message-creator';
 import BigNumber from 'bignumber.js';
 import { createSHA256Hmac, verifyHmac } from '../src/crypto-helper';

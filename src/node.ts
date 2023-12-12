@@ -1,4 +1,4 @@
-import { Keypair } from 'stellar-base';
+import { Keypair } from '@stellar/stellar-base';
 
 import * as net from 'net';
 import { Connection } from './connection/connection';

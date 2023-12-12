@@ -1,4 +1,4 @@
-import { hash, Keypair, xdr } from 'stellar-base';
+import { hash, Keypair, xdr } from '@stellar/stellar-base';
 import * as sodium from 'sodium-native';
 import EnvelopeType = xdr.EnvelopeType;
 import Uint64 = xdr.Uint64;

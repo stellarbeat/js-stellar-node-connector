@@ -1,5 +1,5 @@
 import { FlowController } from '../src/connection/flow-controller';
-import { xdr } from 'stellar-base';
+import { xdr } from '@stellar/stellar-base';
 import MessageType = xdr.MessageType;
 
 describe('FlowController', function () {

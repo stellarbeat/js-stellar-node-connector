@@ -1,4 +1,4 @@
-import { Networks } from 'stellar-base';
+import { Networks } from '@stellar/stellar-base';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config();
 import * as yn from 'yn';

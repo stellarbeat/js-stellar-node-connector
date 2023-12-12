@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js';
-import { hash, Keypair, StrKey, xdr } from 'stellar-base';
+import { hash, Keypair, StrKey, xdr } from '@stellar/stellar-base';
 import { err, ok, Result } from 'neverthrow';
 import { Socket } from 'net';
 import { ConnectionAuthentication } from './connection-authentication';

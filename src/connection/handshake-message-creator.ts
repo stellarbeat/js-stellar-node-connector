@@ -1,4 +1,4 @@
-import { xdr } from 'stellar-base';
+import { xdr } from '@stellar/stellar-base';
 import { err, ok, Result } from 'neverthrow';
 import AuthCert = xdr.AuthCert;
 import Hello = xdr.Hello;

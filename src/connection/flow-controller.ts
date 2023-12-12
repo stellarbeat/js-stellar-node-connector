@@ -1,4 +1,4 @@
-import { xdr } from 'stellar-base';
+import { xdr } from '@stellar/stellar-base';
 import { isFloodMessage } from './is-flood-message';
 import MessageType = xdr.MessageType;
 import StellarMessage = xdr.StellarMessage;
