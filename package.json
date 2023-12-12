@@ -1,6 +1,6 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "6.0.0-1",
+  "version": "6.0.0-2",
   "description": "Connect and interact with nodes in the Stellar Network over the tcp protocol",
   "repository": {
     "type": "git",
@@ -28,6 +28,7 @@
     "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
   },
   "dependencies": {
+    "@stellar/stellar-base": "10.0.0",
     "async": "^3.2.0",
     "blocked-at": "^1.2.0",
     "dotenv": "^6.1.0",
@@ -36,7 +37,6 @@
     "neverthrow": "^4.2.2",
     "pino": "^8.15.0",
     "sodium-native": "^3.2.1",
-    "@stellar/stellar-base": "10.0.0",
     "workerpool": "^6.1.5",
     "yn": "^4.0.0"
   },
