@@ -278,8 +278,23 @@ export class Connection extends Duplex {
 	}
 
 	protected processNextMessage(): Result<boolean, Error> {
-		//If size bytes are not available to be read, null will be returned unless the stream has ended, in which case all of the data remaining in the internal buffer will be returned.
-		const data = this.socket.read(this.lengthNextMessage);
+		//If size bytes are not available to be read,
+		// null will be returned unless the stream has ended,
+		// in which case all the data remaining in the internal buffer will be returned.
+		let data: Buffer | null = null;
+		try {
+			data = this.socket.read(this.lengthNextMessage);
+		} catch (e) {
+			this.logger.error(
+				{
+					remote: this.remoteAddress,
+					error: mapUnknownToError(e).message,
+					length: this.lengthNextMessage
+				},
+				'Error reading from socket'
+			);
+			return err(mapUnknownToError(e));
+		}
 		if (!data || data.length !== this.lengthNextMessage) {
 			this.logger.trace(
 				{
