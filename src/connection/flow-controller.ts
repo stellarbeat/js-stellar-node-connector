@@ -3,10 +3,7 @@ import { isFloodMessage } from './is-flood-message';
 import MessageType = xdr.MessageType;
 import StellarMessage = xdr.StellarMessage;
 
-//in the future flowControlInBytes will be mandatory.
 export class FlowController {
-	private flowControlBytesEnabled = false;
-
 	private messagesReceivedInCurrentBatch = 0;
 	private bytesReceivedInCurrentBatch = 0;
 
@@ -28,47 +25,14 @@ export class FlowController {
 		private flowControlSendMoreBatchSizeBytes = 100000
 	) {}
 
-	private enableIfRequirementsAreMet(
-		localOverlayVersion: number,
-		remoteOverlayVersion: number,
-		remoteAuthFlags: number
-	): void {
-		this.flowControlBytesEnabled =
-			remoteOverlayVersion >= 28 &&
-			localOverlayVersion >= 28 &&
-			remoteAuthFlags === 200;
-	}
-
-	isFlowControlBytesEnabled(): boolean {
-		return this.flowControlBytesEnabled;
-	}
-
 	/*
 	 * Start by sending a send-more message with the _total_ capacity available.
 	 */
-	start(
-		localOverlayVersion: number,
-		remoteOverlayVersion: number,
-		remoteAuthFlags: number
-	): null | StellarMessage {
-		this.enableIfRequirementsAreMet(
-			localOverlayVersion,
-			remoteOverlayVersion,
-			remoteAuthFlags
-		);
-
-		if (this.flowControlBytesEnabled) {
-			return xdr.StellarMessage.sendMoreExtended(
-				new xdr.SendMoreExtended({
-					numMessages: this.peerFloodReadingCapacity,
-					numBytes: this.peerFloodReadingCapacityBytes
-				})
-			);
-		}
-
-		return xdr.StellarMessage.sendMore(
-			new xdr.SendMore({
-				numMessages: this.peerFloodReadingCapacity
+	start(): null | StellarMessage {
+		return xdr.StellarMessage.sendMoreExtended(
+			new xdr.SendMoreExtended({
+				numMessages: this.peerFloodReadingCapacity,
+				numBytes: this.peerFloodReadingCapacityBytes
 			})
 		);
 	}
@@ -84,29 +48,20 @@ export class FlowController {
 
 		let shouldSendMore =
 			this.messagesReceivedInCurrentBatch === this.flowControlSendMoreBatchSize;
-		if (this.flowControlBytesEnabled)
-			shouldSendMore =
-				shouldSendMore ||
-				this.bytesReceivedInCurrentBatch >=
-					this.flowControlSendMoreBatchSizeBytes;
+		shouldSendMore =
+			shouldSendMore ||
+			this.bytesReceivedInCurrentBatch >=
+				this.flowControlSendMoreBatchSizeBytes;
 
 		//reclaim the capacity
 		let sendMoreMessage: xdr.StellarMessage;
 		if (shouldSendMore) {
-			if (this.flowControlBytesEnabled) {
-				sendMoreMessage = xdr.StellarMessage.sendMoreExtended(
-					new xdr.SendMoreExtended({
-						numMessages: this.messagesReceivedInCurrentBatch, //!request back the number of messages we received, not the total capacity like when starting!
-						numBytes: this.bytesReceivedInCurrentBatch
-					})
-				);
-			} else {
-				sendMoreMessage = xdr.StellarMessage.sendMore(
-					new xdr.SendMore({
-						numMessages: this.messagesReceivedInCurrentBatch
-					})
-				);
-			}
+			sendMoreMessage = xdr.StellarMessage.sendMoreExtended(
+				new xdr.SendMoreExtended({
+					numMessages: this.messagesReceivedInCurrentBatch, //!request back the number of messages we received, not the total capacity like when starting!
+					numBytes: this.bytesReceivedInCurrentBatch
+				})
+			);
 
 			this.messagesReceivedInCurrentBatch = 0;
 			this.bytesReceivedInCurrentBatch = 0;

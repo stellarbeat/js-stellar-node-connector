@@ -492,9 +492,7 @@ export class Connection extends Duplex {
 			}
 
 			case MessageType.auth(): {
-				const completedHandshakeResult = this.completeHandshake(
-					stellarMessage.auth()
-				);
+				const completedHandshakeResult = this.completeHandshake();
 				if (completedHandshakeResult.isErr())
 					return err(completedHandshakeResult.error);
 				return ok(true);
@@ -561,7 +559,7 @@ export class Connection extends Duplex {
 		return ok(undefined);
 	}
 
-	protected completeHandshake(authMessage: xdr.Auth): Result<void, Error> {
+	protected completeHandshake(): Result<void, Error> {
 		if (this.remoteCalledUs) {
 			const authResult = this.sendAuthMessage();
 			if (authResult.isErr()) return err(authResult.error);
@@ -580,17 +578,7 @@ export class Connection extends Duplex {
 		if (!this.remoteNodeInfo)
 			throw new Error('No remote overlay version after handshake');
 
-		const stellarMessageOrNull = this.flowController.start(
-			this.localNodeInfo.overlayVersion,
-			this.remoteNodeInfo.overlayVersion,
-			authMessage.flags()
-		);
-		if (this.flowController.isFlowControlBytesEnabled()) {
-			this.logger.debug(
-				{ remote: this.remoteAddress, local: this.localAddress },
-				'Flow control in bytes enabled'
-			);
-		}
+		const stellarMessageOrNull = this.flowController.start();
 		if (stellarMessageOrNull !== null)
 			this.sendStellarMessage(stellarMessageOrNull);
 

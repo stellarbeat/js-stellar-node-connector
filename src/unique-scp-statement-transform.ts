@@ -6,7 +6,7 @@ import MessageType = xdr.MessageType;
 import { verifySCPEnvelopeSignature } from './stellar-message-service';
 
 export class UniqueSCPStatementTransform extends Transform {
-	protected cache = new LRUCache(5000);
+	protected cache = new LRUCache({ max: 5000 });
 
 	constructor() {
 		super({
