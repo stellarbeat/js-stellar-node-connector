@@ -23,11 +23,11 @@ the [Stellar base](https://github.com/stellar/js-stellar-base) and [js-xdr](http
 
 ## Install, build and run tests
 
-`yarn install`
+`pnpm install`
 
-`yarn run build` : builds code in lib folder
+`pnpm run build` : builds code in lib folder
 
-`yarn run test`
+`pnpm run test`
 
 #### Optional: copy .env.dist to .env and fill in parameters
 
@@ -110,7 +110,7 @@ Checkout the NodeConf class. The following env parameters are available:
 You can connect to any node with the example script:
 
 ```
-yarn examples:connect ip port
+pnpm examples:connect ip port
 ```
 
 You can find ip/port of nodes on https://stellarbeat.io
@@ -122,7 +122,6 @@ you can inspect the content of the messages without coding.
 ### Publish to npm
 
 ```
-yarn version --major|minor|patch|premajor|preminor|prepatch
-yarn publish
-git push --tags
+pnpm np
 ```
+

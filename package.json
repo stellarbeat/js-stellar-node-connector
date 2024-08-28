@@ -1,6 +1,6 @@
 {
   "name": "@stellarbeat/js-stellar-node-connector",
-  "version": "7.0.0",
+  "version": "6.0.0",
   "description": "Connect and interact with nodes in the Stellar Network over the tcp protocol",
   "repository": {
     "type": "git",
@@ -19,7 +19,8 @@
     "readme.md",
     "lib/**",
     "LICENSE",
-    "examples/**"
+    "examples/**",
+    "pnpm-lock.yaml"
   ],
   "main": "lib/index.js",
   "author": "pieterjan84@github",
