@@ -66,10 +66,14 @@ function connect() {
 					break;
 				default:
 					console.log(
-						'rcv StellarMessage of type ' + stellarMessage.switch().name //+
-						//': ' +
-						//	stellarMessage.toXDR('base64')
+						'rcv StellarMessage of type ' + stellarMessage.switch().name +
+						': ' +
+							stellarMessage.toXDR('base64')
 					);
+					if(stellarMessage.switch().value === 0) {
+						console.log(stellarMessage.error().msg().toString());
+						console.log(stellarMessage.error().code());
+					}
 					break;
 			}
 			stellarMessageJob.done();
