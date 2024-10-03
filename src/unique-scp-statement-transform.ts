@@ -1,12 +1,12 @@
 import { Transform, TransformCallback } from 'stream';
-import * as LRUCache from 'lru-cache';
+import { LRUCache } from 'lru-cache';
 import { hash, Networks, xdr } from '@stellar/stellar-base';
 import StellarMessage = xdr.StellarMessage;
 import MessageType = xdr.MessageType;
 import { verifySCPEnvelopeSignature } from './stellar-message-service';
 
 export class UniqueSCPStatementTransform extends Transform {
-	protected cache = new LRUCache({ max: 5000 });
+	protected cache = new LRUCache<string, number>({ max: 5000 });
 
 	constructor() {
 		super({
